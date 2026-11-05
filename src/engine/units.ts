@@ -1,17 +1,14 @@
-// Aurikrex Calc Units & Dimensional Analysis Engine
-import { all, create, Unit } from 'mathjs';
+// Aurikrex Calc Units & Dimensional Analysis Engine (PRD v2 Section 4A & 7)
+import { all, create } from 'mathjs';
+import { Dimension, DIMENSIONS } from './contract';
 
 const math = create(all);
 
-// Configure math.js custom units or aliases if needed
 try {
-  // Common non-SI units
   math.createUnit('atm', '101325 Pa', { override: true });
   math.createUnit('eV', '1.602176634e-19 J', { override: true });
   math.createUnit('kWh', '3.6e6 J', { override: true });
-} catch (e) {
-  // If already exists or error
-}
+} catch {}
 
 export interface UnitCategory {
   name: string;
@@ -95,7 +92,6 @@ export const COMPATIBLE_CONVERSIONS: Record<string, string[]> = {
  */
 export function normalizeUnitTokens(input: string): string {
   let res = input;
-  // Don't replace ³ if followed by √
   res = res.replace(/(?:³|\u00B3)(?!√)/g, '^3');
   res = res.replace(/²|\u00B2/g, '^2');
   res = res.replace(/⁴|\u2074/g, '^4');
@@ -117,13 +113,38 @@ export function formatUnit(u: any): string {
   try {
     let simplified = u.simplify ? u.simplify() : u;
     let str = simplified.formatUnits();
-    // Normalize string representation e.g. "(m s) / s^2" -> "m / s"
-    str = str.replace(/\(m s\)\s*\/\s*s\^2/g, 'm / s');
+    str = str.replace(/\(m s\)\s*\/\s*s\^2/g, 'm/s');
+    str = str.replace(/m\s*\/\s*s/g, 'm/s');
     str = str.replace(/ohm/g, 'Ω');
     return str;
   } catch (e) {
     return String(u);
   }
+}
+
+/**
+ * Extract 7-integer SI Dimension array:
+ * [length, mass, time, current, temperature, amount, luminous_intensity]
+ */
+export function getUnitDimension(u: any): Dimension {
+  if (!u) return [0, 0, 0, 0, 0, 0, 0];
+  try {
+    const unitObj = typeof u === 'string' ? math.unit(normalizeUnitTokens(u)) : u;
+    const dims = unitObj.dimensions;
+    if (Array.isArray(dims) && dims.length >= 7) {
+      // PRD v2 Section 4A order: [length, mass, time, current, temperature, amount, luminous intensity]
+      return [
+        Math.round(dims[1] || 0), // length
+        Math.round(dims[0] || 0), // mass
+        Math.round(dims[2] || 0), // time
+        Math.round(dims[3] || 0), // current
+        Math.round(dims[4] || 0), // temperature
+        Math.round(dims[6] || 0), // amount
+        Math.round(dims[5] || 0), // luminous intensity
+      ];
+    }
+  } catch {}
+  return [0, 0, 0, 0, 0, 0, 0];
 }
 
 /**
@@ -152,14 +173,13 @@ export function describeUnitDimension(u: any): string {
   try {
     const unitObj = typeof u === 'string' ? math.unit(normalizeUnitTokens(u)) : u;
     const dims = unitObj.dimensions;
-    // Common dimensions in mathjs: [length, mass, time, current, temperature, amount, luminosity]
-    if (dims[0] === 1 && dims[1] === 0 && dims[2] === 0) return 'length';
-    if (dims[0] === 0 && dims[1] === 1 && dims[2] === 0) return 'mass';
-    if (dims[0] === 0 && dims[1] === 0 && dims[2] === 1) return 'time';
-    if (dims[0] === 1 && dims[1] === 1 && dims[2] === -2) return 'force';
-    if (dims[0] === 2 && dims[1] === 1 && dims[2] === -2) return 'energy';
-    if (dims[0] === 1 && dims[1] === 0 && dims[2] === -1) return 'velocity';
-    if (dims[0] === 1 && dims[1] === 0 && dims[2] === -2) return 'acceleration';
+    if (dims[0] === 1 && dims[1] === 0 && dims[2] === 0) return 'length (m)';
+    if (dims[0] === 0 && dims[1] === 1 && dims[2] === 0) return 'mass (kg)';
+    if (dims[0] === 0 && dims[1] === 0 && dims[2] === 1) return 'time (s)';
+    if (dims[0] === 1 && dims[1] === 1 && dims[2] === -2) return 'force (N)';
+    if (dims[0] === 2 && dims[1] === 1 && dims[2] === -2) return 'energy (J)';
+    if (dims[0] === 1 && dims[1] === 0 && dims[2] === -1) return 'velocity (m/s)';
+    if (dims[0] === 1 && dims[1] === 0 && dims[2] === -2) return 'acceleration (m/s²)';
     return unitObj.formatUnits();
   } catch {
     return 'unknown dimension';

@@ -1,8 +1,8 @@
 'use client';
 
-import React from 'react';
-import { AngleMode } from '../engine/types';
-import { Settings, Wrench } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { AngleUnit } from '../engine/contract';
+import { Wrench, Sparkles, WifiOff } from 'lucide-react';
 
 interface HeaderProps {
   shiftActive: boolean;
@@ -10,9 +10,10 @@ interface HeaderProps {
   alphaActive: boolean;
   invActive: boolean;
   hypActive: boolean;
-  angleMode: AngleMode;
+  angleMode: AngleUnit;
   onToggleAngleMode: () => void;
   onOpenToolbox: () => void;
+  onOpenAsk: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -24,7 +25,24 @@ export const Header: React.FC<HeaderProps> = ({
   angleMode,
   onToggleAngleMode,
   onOpenToolbox,
+  onOpenAsk,
 }) => {
+  const [isOnline, setIsOnline] = useState<boolean>(true);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setIsOnline(navigator.onLine);
+      const handleOnline = () => setIsOnline(true);
+      const handleOffline = () => setIsOnline(false);
+      window.addEventListener('online', handleOnline);
+      window.addEventListener('offline', handleOffline);
+      return () => {
+        window.removeEventListener('online', handleOnline);
+        window.removeEventListener('offline', handleOffline);
+      };
+    }
+  }, []);
+
   return (
     <header className="h-[44px] min-h-[44px] max-h-[44px] px-3 flex items-center justify-between border-b border-slate-800/80 bg-slate-900/60 backdrop-blur select-none">
       {/* Brand Logo & Name */}
@@ -78,14 +96,28 @@ export const Header: React.FC<HeaderProps> = ({
         </span>
       </div>
 
-      {/* DEG/RAD Pill & Toolbox Trigger */}
-      <div className="flex items-center gap-2">
+      {/* DEG/RAD Pill, Ask button & Toolbox Trigger */}
+      <div className="flex items-center gap-1.5">
+        <button
+          onClick={onOpenAsk}
+          className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border flex items-center gap-1 transition-all ${
+            isOnline
+              ? 'bg-purple-950/60 text-purple-300 border-purple-700/60 hover:bg-purple-900/60'
+              : 'bg-slate-800/40 text-slate-500 border-slate-700 opacity-60'
+          }`}
+          title={isOnline ? 'Ask: AI Word-Problem Setup' : 'Ask (Offline)'}
+        >
+          <Sparkles className="w-3 h-3 text-purple-400" />
+          <span>Ask</span>
+          {!isOnline && <WifiOff className="w-2.5 h-2.5 text-slate-500" />}
+        </button>
+
         <button
           onClick={onToggleAngleMode}
           className="text-[11px] font-mono font-semibold px-2 py-0.5 rounded-full bg-slate-800 text-blue-300 border border-slate-700 hover:bg-slate-700 active:scale-95 transition-all"
           title="Toggle Angle Mode"
         >
-          {angleMode}
+          {angleMode.toUpperCase()}
         </button>
 
         <button

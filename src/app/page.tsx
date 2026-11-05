@@ -13,10 +13,12 @@ import { FormulaBankModal } from '../components/FormulaBankModal';
 import { ConstantsModal } from '../components/ConstantsModal';
 import { ChemModal } from '../components/ChemModal';
 import { StepsModal } from '../components/StepsModal';
+import { AskModal } from '../components/AskModal';
 import { engine } from '../engine';
-import { AngleMode, EvaluationResult, StepItem } from '../engine/types';
+import { AngleUnit, EvaluateResponse } from '../engine/contract';
 import { db, initStoragePersistence, StoredTapeRow } from '../db';
 import { PhysicalConstant } from '../engine/constants';
+import { toStandardFormUI } from '../engine/formatting';
 
 export default function AurikrexCalcApp() {
   // Input line & Caret state
@@ -32,14 +34,14 @@ export default function AurikrexCalcApp() {
   const [hypActive, setHypActive] = useState<boolean>(false);
   const lastShiftTapRef = useRef<number>(0);
 
-  // Angle Mode ('DEG' | 'RAD')
-  const [angleMode, setAngleMode] = useState<AngleMode>('DEG');
+  // Angle Mode ('deg' | 'rad')
+  const [angleMode, setAngleMode] = useState<AngleUnit>('deg');
 
   // Tape history and variables
   const [tapeRows, setTapeRows] = useState<StoredTapeRow[]>([]);
   const [activeRowId, setActiveRowId] = useState<string | null>(null);
   const [variables, setVariables] = useState<Record<string, any>>({});
-  const [lastResult, setLastResult] = useState<EvaluationResult | null>(null);
+  const [lastResponse, setLastResponse] = useState<EvaluateResponse | null>(null);
 
   // Unit Row category index
   const [unitCategoryIndex, setUnitCategoryIndex] = useState<number>(0);
@@ -50,7 +52,8 @@ export default function AurikrexCalcApp() {
   const [constantsOpen, setConstantsOpen] = useState<boolean>(false);
   const [chemOpen, setChemOpen] = useState<boolean>(false);
   const [stepsModalOpen, setStepsModalOpen] = useState<boolean>(false);
-  const [currentSteps, setCurrentSteps] = useState<{ expr: string; res: string; steps?: StepItem[] }>({
+  const [askModalOpen, setAskModalOpen] = useState<boolean>(false);
+  const [currentSteps, setCurrentSteps] = useState<{ expr: string; res: string; steps?: string[] }>({
     expr: '',
     res: '',
   });
@@ -59,7 +62,7 @@ export default function AurikrexCalcApp() {
   useEffect(() => {
     initStoragePersistence();
 
-    // Register PWA Service Worker
+    // Register PWA Service Worker (precaching shell, fonts, wasm)
     if (typeof window !== 'undefined' && 'serviceWorker' in navigator && process.env.NODE_ENV === 'production') {
       navigator.serviceWorker
         .register('/sw.js')
@@ -72,7 +75,7 @@ export default function AurikrexCalcApp() {
       try {
         const savedSettings = await db.settings.get('user-settings');
         if (savedSettings) {
-          setAngleMode(savedSettings.angleMode);
+          setAngleMode(savedSettings.angleMode.toLowerCase() as AngleUnit);
         }
 
         const savedRows = await db.tape.orderBy('createdAt').toArray();
@@ -80,15 +83,20 @@ export default function AurikrexCalcApp() {
           setTapeRows(savedRows);
           const last = savedRows[savedRows.length - 1];
           if (last.numericValue !== null) {
-            setLastResult({
-              value: last.value,
-              numericValue: last.numericValue,
+            setLastResponse({
+              ok: !last.error,
+              value: last.numericValue,
               unit: last.unit,
+              dimension: [0, 0, 0, 0, 0, 0, 0],
               forms: {
-                ...last.forms,
-                sigFigs: (n: number) => parseFloat(last.numericValue!.toPrecision(n)).toString(),
+                decimal: last.forms.decimal,
+                fraction: last.forms.fraction,
+                standard: last.forms.standardForm,
+                sig_figs: last.forms.decimal,
               },
-              error: last.error,
+              steps: [],
+              warnings: [],
+              error: last.error ? { code: 'SYNTAX', message: last.error } : null,
             });
           }
         }
@@ -96,7 +104,7 @@ export default function AurikrexCalcApp() {
         const savedVars = await db.variables.toArray();
         const varsObj: Record<string, any> = {};
         savedVars.forEach((v) => {
-          varsObj[v.name] = v.unit ? { value: v.value, unit: v.unit } : v.value;
+          varsObj[v.name] = v.unit ? { value: v.value, unit: v.unit } : { value: v.value };
         });
         setVariables(varsObj);
       } catch (e) {
@@ -119,7 +127,6 @@ export default function AurikrexCalcApp() {
   const handleToggleShift = () => {
     const now = Date.now();
     if (now - lastShiftTapRef.current < 350) {
-      // Double tap -> Toggle lock
       setShiftLocked(!shiftLocked);
       setShiftActive(!shiftLocked);
     } else {
@@ -179,27 +186,44 @@ export default function AurikrexCalcApp() {
     }
   };
 
-  // 5. Evaluate expression & update Live Tape
+  // 5. Evaluate expression through the Section 4A Engine JSON contract
   const handleEvaluate = async () => {
     if (!expression.trim()) return;
 
-    // Build context
-    const lastAns = lastResult?.numericValue ?? 0;
-    const ctx = {
-      angleMode,
-      variables: { ...variables },
-      ans: lastAns,
+    // Check for variable assignment: e.g. "A = 9.8" or "X = 5 m"
+    const assignMatch = expression.match(/^([A-Za-z])\s*=\s*(.+)$/);
+    let targetVarName: string | null = null;
+    let evalInput = expression;
+
+    if (assignMatch) {
+      const varName = assignMatch[1].toUpperCase();
+      const rhs = assignMatch[2].trim();
+      const isSimpleVar = ['A', 'B', 'C', 'X', 'Y', 'M'].includes(varName);
+      if (isSimpleVar && !rhs.includes('x') && !rhs.includes('X') && rhs !== '0') {
+        targetVarName = varName;
+        evalInput = rhs;
+      }
+    }
+
+    const lastAns = lastResponse?.value !== null ? { value: lastResponse!.value! } : undefined;
+    const req = {
+      input: evalInput,
+      context: {
+        angle: angleMode,
+        variables,
+        ans: lastAns,
+      },
     };
 
-    const res = engine.evaluate({ input: expression, context: ctx });
+    const res = engine.evaluateParsed(req);
 
     if (res.error) {
-      setInputError(res.error);
+      setInputError(res.error.message);
     } else {
       setInputError(null);
     }
 
-    setLastResult(res);
+    setLastResponse(res);
     consumeModifiers();
 
     const timestamp = Date.now();
@@ -208,15 +232,15 @@ export default function AurikrexCalcApp() {
     const newRow: StoredTapeRow = {
       id: rowId,
       expression,
-      value: res.value !== null ? String(res.value) : null,
-      numericValue: res.numericValue,
+      value: res.value !== null ? String(res.forms.decimal) : null,
+      numericValue: res.value,
       unit: res.unit,
-      error: res.error,
+      error: res.error ? res.error.message : null,
       forms: {
         decimal: res.forms.decimal,
         fraction: res.forms.fraction,
-        standardForm: res.forms.standardForm,
-        engineering: res.forms.engineering,
+        standardForm: res.forms.standard,
+        engineering: res.forms.standard,
       },
       dependsOn: [],
       createdAt: activeRowId
@@ -225,14 +249,11 @@ export default function AurikrexCalcApp() {
       updatedAt: timestamp,
     };
 
-    // Update in-memory tape rows
     let updatedRows: StoredTapeRow[];
     if (activeRowId) {
-      // Editing existing row: update it and recalculate dependents (FR-8)
       updatedRows = tapeRows.map((r) => (r.id === activeRowId ? newRow : r));
       setActiveRowId(null);
     } else {
-      // Append new row
       updatedRows = [...tapeRows, newRow];
     }
 
@@ -241,19 +262,18 @@ export default function AurikrexCalcApp() {
     // Persist to Dexie
     try {
       await db.tape.put(newRow);
-      // Persist any updated variables
-      if (ctx.variables) {
-        setVariables(ctx.variables);
-        for (const [k, v] of Object.entries(ctx.variables)) {
-          if (v !== undefined) {
-            await db.variables.put({
-              name: k,
-              value: typeof v === 'object' ? v.value : v,
-              unit: typeof v === 'object' ? v.unit : null,
-              updatedAt: timestamp,
-            });
-          }
-        }
+      if (targetVarName && res.value !== null) {
+        const updatedVars = {
+          ...variables,
+          [targetVarName]: { value: res.value, unit: res.unit },
+        };
+        setVariables(updatedVars);
+        await db.variables.put({
+          name: targetVarName,
+          value: res.value,
+          unit: res.unit,
+          updatedAt: timestamp,
+        });
       }
     } catch (e) {
       console.warn('[Aurikrex Storage] Save failed:', e);
@@ -272,7 +292,7 @@ export default function AurikrexCalcApp() {
   const handleClearTape = async () => {
     setTapeRows([]);
     setActiveRowId(null);
-    setLastResult(null);
+    setLastResponse(null);
     try {
       await db.tape.clear();
     } catch {}
@@ -280,12 +300,12 @@ export default function AurikrexCalcApp() {
 
   // 8. Toggle Angle Mode DEG / RAD
   const handleToggleAngleMode = async () => {
-    const nextMode: AngleMode = angleMode === 'DEG' ? 'RAD' : 'DEG';
+    const nextMode: AngleUnit = angleMode === 'deg' ? 'rad' : 'deg';
     setAngleMode(nextMode);
     try {
       await db.settings.put({
         id: 'user-settings',
-        angleMode: nextMode,
+        angleMode: nextMode.toUpperCase() as any,
         resultForm: 'decimal',
         sigFigs: 12,
         lastCategory: 'Length',
@@ -312,6 +332,7 @@ export default function AurikrexCalcApp() {
         angleMode={angleMode}
         onToggleAngleMode={handleToggleAngleMode}
         onOpenToolbox={() => setToolboxOpen(true)}
+        onOpenAsk={() => setAskModalOpen(true)}
       />
 
       {/* 2. Tape (flex, scrolls inside, bottom-aligned) */}
@@ -332,17 +353,31 @@ export default function AurikrexCalcApp() {
 
       {/* 4. Suggestion Strip (30px or 0, only when last row is a result) */}
       <SuggestionStrip
-        lastResult={lastResult}
+        lastResult={
+          lastResponse && lastResponse.value !== null
+            ? {
+                value: lastResponse.forms.decimal,
+                numericValue: lastResponse.value,
+                forms: {
+                  decimal: lastResponse.forms.decimal,
+                  fraction: lastResponse.forms.fraction,
+                  standardForm: toStandardFormUI(lastResponse.value),
+                  engineering: toStandardFormUI(lastResponse.value),
+                  sigFigs: (n: number) => parseFloat(lastResponse.value!.toPrecision(n)).toString(),
+                },
+              }
+            : null
+        }
         onApplyForm={(form) => {
           setExpression(form);
           setCursorPos(form.length);
         }}
         onShowSteps={() => {
-          if (lastResult) {
+          if (lastResponse) {
             setCurrentSteps({
               expr: expression || 'Last Expression',
-              res: lastResult.value !== null ? String(lastResult.value) : '',
-              steps: lastResult.steps,
+              res: lastResponse.value !== null ? `${lastResponse.forms.decimal} ${lastResponse.unit || ''}` : '',
+              steps: lastResponse.steps,
             });
             setStepsModalOpen(true);
           }
@@ -394,7 +429,7 @@ export default function AurikrexCalcApp() {
       <ToolboxModal
         isOpen={toolboxOpen}
         onClose={() => setToolboxOpen(false)}
-        angleMode={angleMode}
+        angleMode={angleMode.toUpperCase() as any}
         onToggleAngleMode={handleToggleAngleMode}
         onClearTape={handleClearTape}
         onOpenFormulaBank={() => setFormulaBankOpen(true)}
@@ -426,7 +461,13 @@ export default function AurikrexCalcApp() {
         onClose={() => setStepsModalOpen(false)}
         expression={currentSteps.expr}
         result={currentSteps.res}
-        steps={currentSteps.steps}
+        steps={currentSteps.steps?.map((s) => ({ type: 'intermediate', text: s }))}
+      />
+
+      <AskModal
+        isOpen={askModalOpen}
+        onClose={() => setAskModalOpen(false)}
+        onSendToTape={handleSendToTape}
       />
     </main>
   );

@@ -1,86 +1,123 @@
 # Aurikrex Calc ⚡
 
-> **Offline-first scientific calculator PWA for science students**  
-> Designed to feel like an unfair advantage for JAMB, WAEC, JUPEB, A-level and university science students.
+> **Offline-first scientific calculator PWA for Falcon’s own use**  
+> Built to feel like an unfair advantage for study, research, and lesson prep.  
+> *Falcon is the only user, forever — running on his own Android phone and personal devices.*
 
 ---
 
-## ✨ Features & Architecture
+## 🏛️ Architecture & PRD v2 Specifications
 
-### 1. Calculation Engine (Single Seam Interface)
-- Single seam interface: `engine.evaluate({ input, context }) -> EvaluationResult`
-- Seamlessly replaceable engine (ready for Rust/WASM phase without UI changes)
-- Preprocessing and implicit multiplication (`2π`, `3(4+5)`, `2Ans`)
-- Up to 12 significant digits internally
-- Result forms: Decimal, Exact fraction (`3/4`), Standard form (`2.94 × 10¹`), Engineering notation, and arbitrary significant figure formatting.
+### 1. Engine Specification & Section 4A JSON Contract
+The UI communicates strictly through the versioned JSON contract specified in Section 4A of the PRD.
+Until the standalone Rust engine (`aurikrex-engine`) ships its WebAssembly build, the UI runs against recorded JSON fixtures and an in-process contract-compliant engine:
+
+```typescript
+evaluate(request: JSON string) -> JSON string
+recalc(rows: JSON string) -> JSON string
+call(op: string, args: JSON string) -> JSON string
+version() -> JSON string
+```
+
+#### Request Structure:
+```json
+{
+  "input": "9.8 m/s^2 * 3 s",
+  "context": {
+    "angle": "deg",
+    "ans": { "value": 29.4, "unit": "m/s" },
+    "variables": { "A": { "value": 9.8 } },
+    "sig_figs": 12,
+    "result_form": "decimal",
+    "seed": 42
+  }
+}
+```
+
+#### Response Structure:
+```json
+{
+  "ok": true,
+  "value": 29.4,
+  "unit": "m/s",
+  "dimension": [1, 0, -1, 0, 0, 0, 0],
+  "forms": {
+    "decimal": "29.4",
+    "fraction": "147/5",
+    "standard": "2.94e1",
+    "sig_figs": "29.4"
+  },
+  "steps": [],
+  "warnings": [],
+  "error": null
+}
+```
+
+#### Fixed Error Codes:
+`SYNTAX`, `UNEXPECTED_TOKEN`, `UNKNOWN_FUNCTION`, `UNKNOWN_UNIT`, `UNKNOWN_VARIABLE`, `ARITY`, `DIV_ZERO`, `DOMAIN`, `OVERFLOW`, `DIM_MISMATCH`, `BAD_EXPONENT_UNIT`, `CYCLE`, `NO_SOLUTION`, `NOT_CONVERGED`, `SINGULAR_MATRIX`, `TOO_LARGE`, `INTERNAL`.
+
+---
 
 ### 2. Units & Dimensional Analysis
-- Typed inline after numbers: `9.8 m/s² * 3 s = 29.4 m/s`
-- Normalises unicode superscripts (`m/s²` -> `m/s^2`)
-- Strict dimensional checks: prevents invalid additions (e.g., `5 m + 3 s` returns `"Can't add length (m) and time (s)"`)
-- Built-in conversions: `29.4 m/s` to `105.84 km/h`, `1 kWh` to `3.6 MJ`.
+- 7-integer SI dimension vector: `[length, mass, time, current, temperature, amount, luminous_intensity]`.
+- Typed inline: `9.8 m/s² * 3 s = 29.4 m/s` (`[1, 0, -1, 0, 0, 0, 0]`).
+- Exact angle snapping: Values within $1\text{e-}12$ snap to zero or integers (e.g. $\sin(180^\circ) = 0$, $\cos(90^\circ) = 0$).
+- Dimension mismatch safety: `5 m + 3 s` returns `DIM_MISMATCH` (`"Can't add length (m) and time (s)"`).
+- Built-in conversions: `29.4 m/s` $\to$ `105.84 km/h`, `1 kWh` $\to$ `3.6 MJ`.
 - Unit category cycling strip: Length, Mass, Time, Force, Energy, Electric.
-
-### 3. Live Editable Tape
-- Bottom-aligned scrollable tape history with diagonal-cut Aurikrex accent bar.
-- Tap any row to edit in-place.
-- Dependent recalculation (FR-8) and circular reference prevention.
-- Offline persistence via IndexedDB (Dexie) with `navigator.storage.persist()`.
-- Export & Import JSON backups from day one.
-
-### 4. Aurikrex Keypad & Modifiers
-- Thumb-friendly `100dvh` one-screen layout tuned for 360×700 and 390×844 viewports.
-- Header Annunciator strip: `S` (SHIFT - cyan), `A` (ALPHA - violet), `INV` (amber), `HYP` (pink).
-- One-shot modifiers with double-tap lock for SHIFT.
-- Dynamic relabeling of keys without blank states.
-- 5 swipeable Function Pages:
-  - **P1 Core**: Trig, Hyperbolic, Powers, Roots, Log, Ln, Constants.
-  - **P2 Algebra & Calculus**: Solve, d/dx, ∫dx, Σ, lim, |x|, mod, ⌊x⌋, ⌈x⌉.
-  - **P3 Stats & Discrete**: nCr, nPr, Mean, Std Dev, Linear Regression, GCD, LCM, Prime factors.
-  - **P4 Vectors & Matrices**: Dot, Cross, Norm, Determinant, Inverse, Complex polar/rect.
-  - **P5 Science**: Molar mass ($M_r$), pH, Molarity, Gas laws, Hardy-Weinberg.
-- The iconic solid blue `=` key with chamfered corner echoing the Aurikrex logo.
-
-### 5. Toolbox & Science Utilities
-- **Formula Bank**: 40+ curated formulas across Mechanics, Waves, Electricity, Thermal, Chemistry, Biology, and Genetics with interactive step-by-step solvers.
-- **Physical Constants**: $g, c, h, N_A, R, k_B, e, G, \varepsilon_0, \mu_0, m_e, m_p$ with SI units.
-- **Chemistry Tool**: Formula molar mass calculation (e.g. $\text{H}_2\text{SO}_4$, $\text{Ca(OH)}_2$) with elemental breakdown percentages and mini periodic table.
-- **Academic Tools**: CGPA calculation on 5.0 Nigerian university scale and JAMB aggregate calculator.
+- Percentage convention: $200 + 10\% = 220$ (calculator convention).
 
 ---
 
-## 🧪 Golden Test Suite (105+ Verified Tests)
+### 3. Ask (AI Word-Problem Setup)
+- **DeepSeek on Cloudflare Workers AI**: Configured for `@cf/deepseek-ai/deepseek-r1-distill-qwen-32b` within Cloudflare's free daily 10,000 Neurons allocation.
+- **Passphrase-Protected**: Falcon's personal passphrase stored locally on device protects the Cloudflare Worker budget.
+- **Formula & Variable Extraction**: The AI outputs structured JSON; the Aurikrex engine computes the result.
+- **Offline Safety**: Disables visibly with an "online only" badge when disconnected.
 
-Run the automated test suite with Vitest:
+---
+
+### 4. Live Editable Tape & Storage
+- Bottom-aligned scrollable tape with Aurikrex diagonal-cut accent bar.
+- In-place row editing recalculates dependent rows in $<50\text{ ms}$.
+- Detects circular tape references (`CYCLE`).
+- Offline IndexedDB persistence via Dexie with `navigator.storage.persist()`.
+- Export & Import JSON backups.
+
+---
+
+## 🧪 PRD v2 Golden Test Suite (101 Tests)
+
+Run the test suite with Vitest:
 
 ```bash
 npm test
 ```
 
-Includes test cases verified against reference calculators and hand calculations:
-- `sin(30°) = 0.5` in DEG mode
-- `5! = 120`
-- `2π ≈ 6.283185`
-- `1/0` produces `"Can't divide by zero"`
-- `asin(2)` produces domain error
-- `9.8 m/s² * 3 s = 29.4 m/s`
-- `29.4 m/s` converts to `105.84 km/h`
-- `5 m + 3 s` produces dimension error
-- `1 kWh` converts to `3.6 MJ`
-- `x² - 5x + 6 = 0` solves roots $2$ and $3$
-- $\int_0^1 x^2 \, dx \approx 0.3333$
-- $\text{H}_2\text{SO}_4$ molar mass $\approx 98.079\text{ g/mol}$
+### Verified PRD v2 Section 8 Seed Cases:
+1. $2\pi \approx 6.2832$
+2. $\sin(30^\circ) = 0.5$ in DEG
+3. $5! = 120$
+4. $1/0$ returns `DIV_ZERO`
+5. $9.8\text{ m/s}^2 \times 3\text{ s} = 29.4\text{ m/s}$ (`dimension: [1, 0, -1, 0, 0, 0, 0]`)
+6. $5\text{ m} + 3\text{ s}$ returns `DIM_MISMATCH`
+7. $29.4\text{ m/s} \to 105.84\text{ km/h}$
+8. $1\text{ kWh} \to 3.6\text{ MJ}$
+9. $200 + 10\% = 220$ (calculator convention)
+10. $\arcsin(2)$ returns `DOMAIN`
+11. Circular tape reference returns `CYCLE`
+12. Input over 2,000 characters returns `TOO_LARGE`
 
 ---
 
 ## 🚀 Building & Exporting
 
 ```bash
-# Development mode
+# Development server
 npm run dev
 
 # Static Export (output: 'export' in Next.js)
 npm run build
 ```
 
-The static PWA output is emitted directly to `out/` ready to deploy to Cloudflare Pages, Vercel, or GitHub Pages.
+Emitted to `out/` ready for Cloudflare Pages, Vercel, or local PWA install.
