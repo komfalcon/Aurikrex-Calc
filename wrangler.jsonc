@@ -1,6 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "aurikrex-calc",
+  "account_id": "b2f877a02937ca06f9b1ac585f4c6d61",
   "compatibility_date": "2024-11-01",
   "assets": {
     "directory": "./out",
