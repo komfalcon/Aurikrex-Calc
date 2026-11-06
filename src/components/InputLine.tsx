@@ -7,6 +7,7 @@ interface InputLineProps {
   cursorPosition: number;
   onSetCursorPosition: (pos: number) => void;
   error?: string | null;
+  onSwipeDown?: () => void;
 }
 
 export const InputLine: React.FC<InputLineProps> = ({
@@ -14,8 +15,10 @@ export const InputLine: React.FC<InputLineProps> = ({
   cursorPosition,
   onSetCursorPosition,
   error,
+  onSwipeDown,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const touchStartY = useRef<number | null>(null);
 
   // Auto scroll horizontally to cursor if expression overflows
   useEffect(() => {
@@ -24,12 +27,29 @@ export const InputLine: React.FC<InputLineProps> = ({
     }
   }, [value, cursorPosition]);
 
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartY.current = e.touches[0].clientY;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartY.current === null) return;
+    const deltaY = e.changedTouches[0].clientY - touchStartY.current;
+    if (deltaY > 35 && onSwipeDown) {
+      onSwipeDown();
+    }
+    touchStartY.current = null;
+  };
+
   const beforeCursor = value.slice(0, cursorPosition);
   const atCursor = value.slice(cursorPosition, cursorPosition + 1);
   const afterCursor = value.slice(cursorPosition + 1);
 
   return (
-    <div className="h-[48px] min-h-[48px] px-4 flex flex-col justify-center border-b-2 border-blue-500/80 bg-slate-900/40 relative">
+    <div
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      className="h-[48px] min-h-[48px] px-4 flex flex-col justify-center border-b-2 border-blue-500/80 bg-slate-900/40 relative"
+    >
       <div
         ref={containerRef}
         onClick={(e) => {

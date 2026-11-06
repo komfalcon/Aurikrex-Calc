@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { AngleUnit } from '../engine/contract';
-import { Wrench, Sparkles, WifiOff } from 'lucide-react';
+import { Wrench, Sparkles, WifiOff, History } from 'lucide-react';
 
 interface HeaderProps {
   shiftActive: boolean;
@@ -14,6 +14,7 @@ interface HeaderProps {
   onToggleAngleMode: () => void;
   onOpenToolbox: () => void;
   onOpenAsk: () => void;
+  onOpenHistory?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -26,6 +27,7 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleAngleMode,
   onOpenToolbox,
   onOpenAsk,
+  onOpenHistory,
 }) => {
   const [isOnline, setIsOnline] = useState<boolean>(true);
 
@@ -119,6 +121,17 @@ export const Header: React.FC<HeaderProps> = ({
         >
           {angleMode.toUpperCase()}
         </button>
+
+        {onOpenHistory && (
+          <button
+            onClick={onOpenHistory}
+            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 active:scale-95 transition-all"
+            title="View Calculation History"
+            aria-label="History"
+          >
+            <History className="w-4 h-4" />
+          </button>
+        )}
 
         <button
           onClick={onOpenToolbox}

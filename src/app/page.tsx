@@ -14,6 +14,7 @@ import { ConstantsModal } from '../components/ConstantsModal';
 import { ChemModal } from '../components/ChemModal';
 import { StepsModal } from '../components/StepsModal';
 import { AskModal } from '../components/AskModal';
+import { HistoryDrawer } from '../components/HistoryDrawer';
 import { engine } from '../engine';
 import { AngleUnit, EvaluateResponse } from '../engine/contract';
 import { db, initStoragePersistence, StoredTapeRow } from '../db';
@@ -53,6 +54,7 @@ export default function AurikrexCalcApp() {
   const [chemOpen, setChemOpen] = useState<boolean>(false);
   const [stepsModalOpen, setStepsModalOpen] = useState<boolean>(false);
   const [askModalOpen, setAskModalOpen] = useState<boolean>(false);
+  const [historyDrawerOpen, setHistoryDrawerOpen] = useState<boolean>(false);
   const [currentSteps, setCurrentSteps] = useState<{ expr: string; res: string; steps?: string[] }>({
     expr: '',
     res: '',
@@ -335,14 +337,16 @@ export default function AurikrexCalcApp() {
         onToggleAngleMode={handleToggleAngleMode}
         onOpenToolbox={() => setToolboxOpen(true)}
         onOpenAsk={() => setAskModalOpen(true)}
+        onOpenHistory={() => setHistoryDrawerOpen(true)}
       />
 
-      {/* 2. Tape (flex, scrolls inside, bottom-aligned) */}
+      {/* 2. Tape (flex, scrolls inside, bottom-aligned, pull-down history) */}
       <Tape
         rows={tapeRows}
         activeRowId={activeRowId}
         onSelectRow={handleSelectTapeRow}
         onClearTape={handleClearTape}
+        onOpenHistory={() => setHistoryDrawerOpen(true)}
       />
 
       {/* 3. Input Line (48px, mono, blue underline, custom caret) */}
@@ -351,6 +355,7 @@ export default function AurikrexCalcApp() {
         cursorPosition={cursorPos}
         onSetCursorPosition={(pos) => setCursorPos(pos)}
         error={inputError}
+        onSwipeDown={() => setHistoryDrawerOpen(true)}
       />
 
       {/* 4. Suggestion Strip (30px or 0, only when last row is a result) */}
@@ -470,6 +475,15 @@ export default function AurikrexCalcApp() {
         isOpen={askModalOpen}
         onClose={() => setAskModalOpen(false)}
         onSendToTape={handleSendToTape}
+      />
+
+      {/* Pull-down Calculation History Drawer */}
+      <HistoryDrawer
+        isOpen={historyDrawerOpen}
+        onClose={() => setHistoryDrawerOpen(false)}
+        rows={tapeRows}
+        onSelectRow={handleSelectTapeRow}
+        onClearHistory={handleClearTape}
       />
     </main>
   );
