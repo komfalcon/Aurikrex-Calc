@@ -389,12 +389,12 @@ describe('Aurikrex PRD v2 Golden Test Suite (Section 8 Seed Cases & 100+ Tests)'
     expect(res.molarMass).toBeCloseTo(394.04, 0);
   });
 
-  it('Physical Constants: comprehensive bank with 40+ constants', () => {
-    expect(CONSTANTS.length).toBeGreaterThanOrEqual(40);
+  it('Physical Constants: comprehensive bank with 70+ constants', () => {
+    expect(CONSTANTS.length).toBeGreaterThanOrEqual(70);
   });
 
-  it('Formula Bank: comprehensive science bank with 40+ formulas', () => {
-    expect(FORMULA_BANK.length).toBeGreaterThanOrEqual(40);
+  it('Formula Bank: comprehensive science bank with 60+ formulas', () => {
+    expect(FORMULA_BANK.length).toBeGreaterThanOrEqual(60);
   });
 
   it('Statistics: Mode calculation on multi-modal data', () => {

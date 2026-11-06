@@ -20,7 +20,7 @@ export const ConstantsModal: React.FC<ConstantsModalProps> = ({
 
   if (!isOpen) return null;
 
-  const categories = ['All', 'Universal', 'Electromagnetic', 'Atomic', 'Physico-chemical', 'Thermodynamic', 'Astronomical'];
+  const categories = ['All', 'Universal', 'Electromagnetic', 'Atomic', 'Physico-chemical', 'Thermodynamic', 'Astronomical', 'Mathematical'];
 
   const filtered = CONSTANTS.filter((c) => {
     const matchesCategory = selectedCategory === 'All' || c.category === selectedCategory;

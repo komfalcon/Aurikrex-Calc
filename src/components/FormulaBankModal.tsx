@@ -29,6 +29,7 @@ export const FormulaBankModal: React.FC<FormulaBankModalProps> = ({
   const topics = [
     'All',
     'Mechanics',
+    'Fluids & Pressure',
     'Waves & Optics',
     'Electricity & Magnetism',
     'Thermodynamics',
@@ -180,7 +181,7 @@ export const FormulaBankModal: React.FC<FormulaBankModalProps> = ({
                 <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-500" />
                 <input
                   type="text"
-                  placeholder="Search 50+ science formulas..."
+                  placeholder="Search 70+ science formulas..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500 font-sans"
