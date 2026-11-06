@@ -417,6 +417,27 @@ describe('Aurikrex PRD v2 Golden Test Suite (Section 8 Seed Cases & 100+ Tests)'
     expect(res.value).toBe(0);
   });
 
+  // --- Auto-close unclosed parentheses ---
+  describe('Bracket Auto-closure', () => {
+    it('Auto-closes single missing closing parenthesis: cos(45 in DEG', () => {
+      const res = evalJson('cos(45', { angle: 'deg' });
+      expect(res.ok).toBe(true);
+      expect(res.value).toBeCloseTo(Math.cos((45 * Math.PI) / 180), 5);
+    });
+
+    it('Auto-closes multiple nested missing parentheses: sin(30 * (2 + 1 in DEG', () => {
+      const res = evalJson('sin(30 * (2 + 1', { angle: 'deg' });
+      expect(res.ok).toBe(true);
+      expect(res.value).toBeCloseTo(1, 6); // sin(90 deg) = 1
+    });
+
+    it('Auto-closes arithmetic missing parenthesis: (2 + (3 * 4', () => {
+      const res = evalJson('(2 + (3 * 4');
+      expect(res.ok).toBe(true);
+      expect(res.value).toBe(14);
+    });
+  });
+
   // --- Automated Fixtures Evaluation (from fixtures/golden.json) ---
   describe('Recorded JSON Fixtures (fixtures/golden.json)', () => {
     goldenFixtures.forEach((item: any, idx: number) => {

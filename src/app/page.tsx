@@ -192,10 +192,25 @@ export default function AurikrexCalcApp() {
   const handleEvaluate = async () => {
     if (!expression.trim()) return;
 
+    // Auto-detect missing close brackets and automatically add them
+    let openCount = 0;
+    for (let i = 0; i < expression.length; i++) {
+      if (expression[i] === '(') openCount++;
+      else if (expression[i] === ')') {
+        if (openCount > 0) openCount--;
+      }
+    }
+    let currentExpression = expression;
+    if (openCount > 0) {
+      currentExpression = expression + ')'.repeat(openCount);
+      setExpression(currentExpression);
+      setCursorPos(currentExpression.length);
+    }
+
     // Check for variable assignment: e.g. "A = 9.8" or "X = 5 m"
-    const assignMatch = expression.match(/^([A-Za-z])\s*=\s*(.+)$/);
+    const assignMatch = currentExpression.match(/^([A-Za-z])\s*=\s*(.+)$/);
     let targetVarName: string | null = null;
-    let evalInput = expression;
+    let evalInput = currentExpression;
 
     if (assignMatch) {
       const varName = assignMatch[1].toUpperCase();

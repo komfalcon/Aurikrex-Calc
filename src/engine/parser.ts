@@ -13,6 +13,19 @@ export function preprocessExpression(input: string, angleMode: 'deg' | 'rad' = '
     throw new Error('TOO_LARGE: Input is too long');
   }
 
+  // Auto-close missing parentheses (PRD requirement: automatically detect no close bracket and add it)
+  let openCount = 0;
+  for (let i = 0; i < expr.length; i++) {
+    if (expr[i] === '(') {
+      openCount++;
+    } else if (expr[i] === ')') {
+      if (openCount > 0) openCount--;
+    }
+  }
+  if (openCount > 0) {
+    expr = expr + ')'.repeat(openCount);
+  }
+
   // Check nesting depth (max 64)
   let depth = 0;
   for (let i = 0; i < expr.length; i++) {
@@ -95,20 +108,62 @@ export function preprocessExpression(input: string, angleMode: 'deg' | 'rad' = '
 }
 
 /**
- * Clean, safe wrapper for trig functions in DEG mode
+ * Clean, safe wrapper for trig functions in DEG mode with support for nested expressions and parentheses
  */
 function wrapTrigInDegrees(expr: string): string {
-  // Direct trig: sin, cos, tan, sec, csc, cot
-  expr = expr.replace(/\b(sin|cos|tan|sec|csc|cot)\s*\(([^()]+)\)/g, (match, fn, arg) => {
-    if (arg.includes('deg') || arg.includes('rad') || arg.includes('pi / 180')) return match;
-    return `${fn}((${arg}) * pi / 180)`;
-  });
+  const trigFns = ['asin', 'acos', 'atan', 'sin', 'cos', 'tan', 'sec', 'csc', 'cot'];
+  let result = '';
+  let i = 0;
 
-  // Inverse trig: asin, acos, atan (single pass only)
-  expr = expr.replace(/\b(asin|acos|atan)\s*\(([^()]+)\)/g, (match, fn, arg) => {
-    if (arg.includes('180 / pi')) return match;
-    return `(${fn}(${arg}) * 180 / pi)`;
-  });
+  while (i < expr.length) {
+    let matchedFn: string | null = null;
+    for (const fn of trigFns) {
+      const isWordStart = i === 0 || /[^a-zA-Z0-9_]/.test(expr[i - 1]);
+      if (isWordStart && expr.startsWith(fn, i)) {
+        let j = i + fn.length;
+        while (j < expr.length && /\s/.test(expr[j])) j++;
+        if (expr[j] === '(') {
+          matchedFn = fn;
+          break;
+        }
+      }
+    }
 
-  return expr;
+    if (matchedFn) {
+      const openParenIdx = expr.indexOf('(', i + matchedFn.length);
+      let depth = 1;
+      let k = openParenIdx + 1;
+      while (k < expr.length && depth > 0) {
+        if (expr[k] === '(') depth++;
+        else if (expr[k] === ')') depth--;
+        k++;
+      }
+
+      // Argument inside the parentheses
+      const arg = expr.slice(openParenIdx + 1, depth === 0 ? k - 1 : k);
+      const wrappedArg = wrapTrigInDegrees(arg);
+
+      const isInverse = ['asin', 'acos', 'atan'].includes(matchedFn);
+      if (isInverse) {
+        if (wrappedArg.includes('180 / pi')) {
+          result += `${matchedFn}(${wrappedArg})`;
+        } else {
+          result += `(${matchedFn}(${wrappedArg}) * 180 / pi)`;
+        }
+      } else {
+        if (wrappedArg.includes('deg') || wrappedArg.includes('rad') || wrappedArg.includes('pi / 180')) {
+          result += `${matchedFn}(${wrappedArg})`;
+        } else {
+          result += `${matchedFn}((${wrappedArg}) * pi / 180)`;
+        }
+      }
+
+      i = k;
+    } else {
+      result += expr[i];
+      i++;
+    }
+  }
+
+  return result;
 }
