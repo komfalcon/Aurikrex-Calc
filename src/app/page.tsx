@@ -205,7 +205,9 @@ export default function AurikrexCalcApp() {
       }
     }
 
-    const lastAns = lastResponse?.value !== null ? { value: lastResponse!.value! } : undefined;
+    const lastAns = (lastResponse && typeof lastResponse.value === 'number')
+      ? { value: lastResponse.value }
+      : undefined;
     const req = {
       input: evalInput,
       context: {

@@ -2,9 +2,10 @@ import { describe, it, expect } from 'vitest';
 import { engine } from '../engine';
 import { EvaluateResponse } from '../engine/contract';
 import { convertUnit } from '../engine/units';
-import { calculateMolarMass } from '../engine/chemistry';
+import { calculateMolarMass, PERIODIC_TABLE } from '../engine/chemistry';
 import { calculateStats, calculateLinearRegression } from '../engine/statistics';
 import { FORMULA_BANK, solveFormula } from '../engine/formulas';
+import { CONSTANTS } from '../engine/constants';
 import { calculateCGPA, calculateJAMBAggregate } from '../engine/academic';
 
 import goldenFixtures from '../../fixtures/golden.json';
@@ -373,6 +374,27 @@ describe('Aurikrex PRD v2 Golden Test Suite (Section 8 Seed Cases & 100+ Tests)'
   it('Chemistry: Ca(OH)2 molar mass ≈ 74.09 g/mol', () => {
     const res = calculateMolarMass('Ca(OH)2');
     expect(res.molarMass).toBeCloseTo(74.09, 1);
+  });
+
+  it('Periodic Table: contains all 118 elements from H to Og', () => {
+    const elements = Object.values(PERIODIC_TABLE);
+    expect(elements.length).toBe(118);
+    expect(PERIODIC_TABLE['H'].atomicNumber).toBe(1);
+    expect(PERIODIC_TABLE['Og'].atomicNumber).toBe(118);
+    expect(PERIODIC_TABLE['U'].radioactive).toBe(true);
+  });
+
+  it('Chemistry: complex heavy compound UO2(NO3)2 molar mass', () => {
+    const res = calculateMolarMass('UO2(NO3)2');
+    expect(res.molarMass).toBeCloseTo(394.04, 0);
+  });
+
+  it('Physical Constants: comprehensive bank with 40+ constants', () => {
+    expect(CONSTANTS.length).toBeGreaterThanOrEqual(40);
+  });
+
+  it('Formula Bank: comprehensive science bank with 40+ formulas', () => {
+    expect(FORMULA_BANK.length).toBeGreaterThanOrEqual(40);
   });
 
   it('Statistics: Mode calculation on multi-modal data', () => {

@@ -43,7 +43,7 @@ export interface EvaluationResult {
 export interface FormulaDefinition {
   id: string;
   name: string;
-  topic: 'Mechanics' | 'Waves' | 'Electricity' | 'Thermal' | 'Modern physics' | 'Moles and gas laws' | 'Electrochemistry' | 'pH and equilibria' | 'Genetics' | 'Magnification' | 'Mathematics';
+  topic: string;
   expression: string;
   variables: {
     symbol: string;

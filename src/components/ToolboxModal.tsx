@@ -3,14 +3,12 @@
 import React, { useState } from 'react';
 import { AngleMode } from '../engine/types';
 import { exportDatabaseToJSON, importDatabaseFromJSON } from '../db';
-import { calculateCGPA, calculateJAMBAggregate, CourseGrade } from '../engine/academic';
 import { calculateStats, calculateLinearRegression } from '../engine/statistics';
 import {
   X,
   BookOpen,
   Atom,
   FlaskConical,
-  GraduationCap,
   BarChart2,
   Download,
   Upload,
@@ -41,21 +39,8 @@ export const ToolboxModal: React.FC<ToolboxModalProps> = ({
   onOpenChem,
   onSendToTape,
 }) => {
-  const [activeSection, setActiveSection] = useState<'main' | 'academic' | 'stats'>('main');
+  const [activeSection, setActiveSection] = useState<'main' | 'stats'>('main');
   const [backupStatus, setBackupStatus] = useState<string | null>(null);
-
-  // Academic CGPA state
-  const [cgpaCourses, setCgpaCourses] = useState<CourseGrade[]>([
-    { courseCode: 'CHM101', creditUnits: 3, grade: 'A' },
-    { courseCode: 'PHY101', creditUnits: 3, grade: 'A' },
-    { courseCode: 'MTH101', creditUnits: 3, grade: 'B' },
-  ]);
-  const [cgpaResult, setCgpaResult] = useState<any>(null);
-
-  // JAMB Aggregate state
-  const [utmeScore, setUtmeScore] = useState<number>(310);
-  const [olevelGrades, setOlevelGrades] = useState<any>(['A1', 'A1', 'B2', 'B3', 'A1']);
-  const [jambResult, setJambResult] = useState<any>(null);
 
   // Stats state
   const [statsDataInput, setStatsDataInput] = useState<string>('12, 15, 18, 22, 25, 28, 30');
@@ -97,20 +82,6 @@ export const ToolboxModal: React.FC<ToolboxModalProps> = ({
     reader.readAsText(file);
   };
 
-  const computeCGPA = () => {
-    try {
-      const res = calculateCGPA(cgpaCourses);
-      setCgpaResult(res);
-    } catch {}
-  };
-
-  const computeJAMB = () => {
-    try {
-      const res = calculateJAMBAggregate({ utmeScore, olevelGrades });
-      setJambResult(res);
-    } catch {}
-  };
-
   const computeStats = () => {
     try {
       const numbers = statsDataInput
@@ -130,11 +101,7 @@ export const ToolboxModal: React.FC<ToolboxModalProps> = ({
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-blue-500" />
             <h3 className="font-bold text-slate-100 text-sm font-lexend">
-              {activeSection === 'academic'
-                ? 'Academic Tools'
-                : activeSection === 'stats'
-                ? 'Statistics'
-                : 'Toolbox & Settings'}
+              {activeSection === 'stats' ? 'Statistics & Regression' : 'Toolbox & Settings'}
             </h3>
           </div>
           <button
@@ -159,11 +126,11 @@ export const ToolboxModal: React.FC<ToolboxModalProps> = ({
                     onClose();
                     onOpenFormulaBank();
                   }}
-                  className="p-3 rounded-xl bg-slate-800/60 hover:bg-slate-800 border border-slate-800 hover:border-blue-500/50 flex flex-col gap-1.5 text-left transition-all group"
+                  className="p-3.5 rounded-xl bg-slate-800/60 hover:bg-slate-800 border border-slate-800 hover:border-blue-500/50 flex flex-col gap-1.5 text-left transition-all group"
                 >
                   <BookOpen className="w-5 h-5 text-blue-400 group-hover:scale-110 transition-transform" />
                   <span className="font-bold text-slate-100 text-xs">Formula Bank</span>
-                  <span className="text-[10px] text-slate-400">40+ Science equations with working</span>
+                  <span className="text-[10px] text-slate-400">Complete science formulas & solvers</span>
                 </button>
 
                 <button
@@ -171,11 +138,11 @@ export const ToolboxModal: React.FC<ToolboxModalProps> = ({
                     onClose();
                     onOpenConstants();
                   }}
-                  className="p-3 rounded-xl bg-slate-800/60 hover:bg-slate-800 border border-slate-800 hover:border-blue-500/50 flex flex-col gap-1.5 text-left transition-all group"
+                  className="p-3.5 rounded-xl bg-slate-800/60 hover:bg-slate-800 border border-slate-800 hover:border-blue-500/50 flex flex-col gap-1.5 text-left transition-all group"
                 >
                   <Atom className="w-5 h-5 text-cyan-400 group-hover:scale-110 transition-transform" />
                   <span className="font-bold text-slate-100 text-xs">Constants</span>
-                  <span className="text-[10px] text-slate-400">g, c, h, N_A, R, k_B with SI units</span>
+                  <span className="text-[10px] text-slate-400">Comprehensive SI physical constants</span>
                 </button>
 
                 <button
@@ -183,29 +150,20 @@ export const ToolboxModal: React.FC<ToolboxModalProps> = ({
                     onClose();
                     onOpenChem();
                   }}
-                  className="p-3 rounded-xl bg-slate-800/60 hover:bg-slate-800 border border-slate-800 hover:border-blue-500/50 flex flex-col gap-1.5 text-left transition-all group"
+                  className="p-3.5 rounded-xl bg-slate-800/60 hover:bg-slate-800 border border-slate-800 hover:border-blue-500/50 flex flex-col gap-1.5 text-left transition-all group"
                 >
                   <FlaskConical className="w-5 h-5 text-emerald-400 group-hover:scale-110 transition-transform" />
                   <span className="font-bold text-slate-100 text-xs">Chemistry</span>
-                  <span className="text-[10px] text-slate-400">Molar mass & Periodic table</span>
-                </button>
-
-                <button
-                  onClick={() => setActiveSection('academic')}
-                  className="p-3 rounded-xl bg-slate-800/60 hover:bg-slate-800 border border-slate-800 hover:border-blue-500/50 flex flex-col gap-1.5 text-left transition-all group"
-                >
-                  <GraduationCap className="w-5 h-5 text-amber-400 group-hover:scale-110 transition-transform" />
-                  <span className="font-bold text-slate-100 text-xs">Academic Checks</span>
-                  <span className="text-[10px] text-slate-400">CGPA (5.0 scale) & JAMB aggregate</span>
+                  <span className="text-[10px] text-slate-400">Molar mass & 118-Element Periodic Table</span>
                 </button>
 
                 <button
                   onClick={() => setActiveSection('stats')}
-                  className="p-3 rounded-xl bg-slate-800/60 hover:bg-slate-800 border border-slate-800 hover:border-blue-500/50 flex flex-col gap-1.5 text-left transition-all col-span-2 group"
+                  className="p-3.5 rounded-xl bg-slate-800/60 hover:bg-slate-800 border border-slate-800 hover:border-blue-500/50 flex flex-col gap-1.5 text-left transition-all group"
                 >
                   <BarChart2 className="w-5 h-5 text-purple-400 group-hover:scale-110 transition-transform" />
-                  <span className="font-bold text-slate-100 text-xs">Statistics & Linear Regression</span>
-                  <span className="text-[10px] text-slate-400">Mean, median, σ, gradient and correlation r</span>
+                  <span className="font-bold text-slate-100 text-xs">Statistics</span>
+                  <span className="text-[10px] text-slate-400">Mean, median, σ, gradient, r</span>
                 </button>
               </div>
 
@@ -254,161 +212,68 @@ export const ToolboxModal: React.FC<ToolboxModalProps> = ({
             </>
           )}
 
-          {activeSection === 'academic' && (
+          {activeSection === 'stats' && (
             <div className="space-y-4">
-              {/* CGPA Calculator */}
               <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800 space-y-3">
-                <span className="font-bold text-slate-200 text-xs block">CGPA Calculator (5.0 Scale)</span>
-                <div className="space-y-2">
-                  {cgpaCourses.map((c, i) => (
-                    <div key={i} className="flex gap-2 items-center">
-                      <input
-                        type="text"
-                        value={c.courseCode}
-                        onChange={(e) => {
-                          const updated = [...cgpaCourses];
-                          updated[i].courseCode = e.target.value;
-                          setCgpaCourses(updated);
-                        }}
-                        className="w-24 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-slate-100 font-mono"
-                      />
-                      <input
-                        type="number"
-                        min="1"
-                        max="6"
-                        value={c.creditUnits}
-                        onChange={(e) => {
-                          const updated = [...cgpaCourses];
-                          updated[i].creditUnits = parseInt(e.target.value) || 1;
-                          setCgpaCourses(updated);
-                        }}
-                        className="w-16 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-slate-100 font-mono text-center"
-                      />
-                      <select
-                        value={c.grade}
-                        onChange={(e) => {
-                          const updated = [...cgpaCourses];
-                          updated[i].grade = e.target.value as any;
-                          setCgpaCourses(updated);
-                        }}
-                        className="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-slate-100 font-mono"
-                      >
-                        {['A', 'B', 'C', 'D', 'E', 'F'].map((g) => (
-                          <option key={g} value={g}>
-                            {g}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="flex gap-2">
-                  <button
-                    onClick={() =>
-                      setCgpaCourses([
-                        ...cgpaCourses,
-                        { courseCode: `CRS${cgpaCourses.length + 1}`, creditUnits: 3, grade: 'A' },
-                      ])
-                    }
-                    className="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded"
-                  >
-                    + Add Course
-                  </button>
-                  <button
-                    onClick={computeCGPA}
-                    className="flex-1 py-1 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded"
-                  >
-                    Compute CGPA
-                  </button>
-                </div>
-
-                {cgpaResult && (
-                  <div className="p-3 bg-slate-900 rounded-lg flex justify-between items-center border border-blue-500/30">
-                    <div>
-                      <div className="text-[10px] text-slate-400">Cumulative GPA</div>
-                      <div className="font-mono text-xl font-bold text-emerald-400">{cgpaResult.cgpa} / 5.0</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-[10px] text-slate-400">Class of Degree</div>
-                      <div className="font-semibold text-slate-200">{cgpaResult.classOfDegree}</div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* JAMB Aggregate */}
-              <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800 space-y-3">
-                <span className="font-bold text-slate-200 text-xs block">JAMB Aggregate Score (UTME + O'Level)</span>
-                <div className="flex gap-2 items-center">
-                  <label className="text-slate-400">UTME Score (out of 400):</label>
-                  <input
-                    type="number"
-                    value={utmeScore}
-                    onChange={(e) => setUtmeScore(parseInt(e.target.value) || 0)}
-                    className="w-24 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-slate-100 font-mono text-center"
+                <span className="font-bold text-slate-200 text-xs block">1-Variable Statistics</span>
+                <div className="space-y-1.5">
+                  <label className="text-slate-400 text-[11px]">Enter comma-separated numbers:</label>
+                  <textarea
+                    rows={3}
+                    value={statsDataInput}
+                    onChange={(e) => setStatsDataInput(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-slate-100 font-mono text-xs focus:outline-none focus:border-purple-500"
                   />
                 </div>
 
                 <button
-                  onClick={computeJAMB}
-                  className="w-full py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded"
+                  onClick={computeStats}
+                  className="w-full py-1.5 bg-purple-600 hover:bg-purple-500 text-white font-semibold rounded-lg transition-all"
                 >
-                  Calculate Aggregate
+                  Calculate Statistics
                 </button>
 
-                {jambResult && (
-                  <div className="p-3 bg-slate-900 rounded-lg space-y-1 border border-blue-500/30">
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">UTME (50%):</span>
-                      <span className="font-mono font-bold text-slate-200">{jambResult.utmeComponent}%</span>
+                {statsResult && (
+                  <div className="space-y-2 bg-slate-900 p-3 rounded-lg border border-purple-500/30">
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <span className="text-slate-400 block text-[10px]">Sample Size (n):</span>
+                        <span className="font-mono font-bold text-purple-300">{statsResult.n}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block text-[10px]">Mean (x̄):</span>
+                        <span className="font-mono font-bold text-purple-300">{statsResult.mean.toFixed(4)}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block text-[10px]">Sample Std Dev (s):</span>
+                        <span className="font-mono font-bold text-purple-300">{statsResult.sampleStdDev.toFixed(4)}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block text-[10px]">Pop Std Dev (σ):</span>
+                        <span className="font-mono font-bold text-purple-300">{statsResult.popStdDev.toFixed(4)}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block text-[10px]">Median:</span>
+                        <span className="font-mono font-bold text-purple-300">{statsResult.median.toFixed(4)}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block text-[10px]">Sum (Σx):</span>
+                        <span className="font-mono font-bold text-purple-300">{statsResult.sum.toFixed(4)}</span>
+                      </div>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">O'Level (50%):</span>
-                      <span className="font-mono font-bold text-slate-200">{jambResult.olevelComponent}%</span>
-                    </div>
-                    <div className="flex justify-between border-t border-slate-800 pt-1">
-                      <span className="font-bold text-blue-400">Total Aggregate:</span>
-                      <span className="font-mono text-lg font-bold text-emerald-400">
-                        {jambResult.totalAggregate}%
-                      </span>
-                    </div>
+
+                    <button
+                      onClick={() => {
+                        onSendToTape(`mean(${statsResult.n} values)`, `${statsResult.mean.toFixed(4)}`);
+                        onClose();
+                      }}
+                      className="w-full mt-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-center transition-all"
+                    >
+                      Send Mean to Tape
+                    </button>
                   </div>
                 )}
               </div>
-            </div>
-          )}
-
-          {activeSection === 'stats' && (
-            <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800 space-y-3">
-              <span className="font-bold text-slate-200 text-xs block">Data Set Analysis</span>
-              <div>
-                <label className="text-slate-400 block mb-1">Enter values separated by commas:</label>
-                <input
-                  type="text"
-                  value={statsDataInput}
-                  onChange={(e) => setStatsDataInput(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-slate-100 font-mono"
-                />
-              </div>
-
-              <button
-                onClick={computeStats}
-                className="w-full py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded"
-              >
-                Compute Statistics
-              </button>
-
-              {statsResult && (
-                <div className="grid grid-cols-2 gap-2 p-3 bg-slate-900 rounded-lg font-mono text-slate-300">
-                  <div>Count (n): <span className="text-blue-400 font-bold">{statsResult.n}</span></div>
-                  <div>Mean (x̄): <span className="text-emerald-400 font-bold">{statsResult.mean.toFixed(4)}</span></div>
-                  <div>Median: <span className="text-emerald-400 font-bold">{statsResult.median}</span></div>
-                  <div>Std Dev (σ): <span className="text-purple-400 font-bold">{statsResult.stdDev.toFixed(4)}</span></div>
-                  <div>Variance: <span className="text-slate-200 font-bold">{statsResult.variance.toFixed(4)}</span></div>
-                  <div>Sum (Σx): <span className="text-slate-200 font-bold">{statsResult.sum}</span></div>
-                </div>
-              )}
             </div>
           )}
         </div>
