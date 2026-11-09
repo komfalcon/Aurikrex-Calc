@@ -31,9 +31,10 @@ export default function RootLayout({
       <head>
         <meta name="mobile-web-app-capable" content="yes" />
         <link rel="icon" href="/icon.svg" type="image/svg+xml" />
-        <link rel="apple-touch-icon" href="/icon.svg" />
+        <link rel="apple-touch-icon" href="/icon-192.png" />
+        <link rel="icon" href="/icon-192.png" sizes="192x192" type="image/png" />
       </head>
-      <body className="bg-[#0B1222] text-slate-100 antialiased overflow-hidden select-none">
+      <body className="bg-slate-50 text-slate-900 antialiased overflow-hidden select-none">
         {children}
       </body>
     </html>
