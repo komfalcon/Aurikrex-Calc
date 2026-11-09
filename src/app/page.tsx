@@ -55,6 +55,7 @@ export default function AurikrexCalcApp() {
   const [stepsModalOpen, setStepsModalOpen] = useState<boolean>(false);
   const [askModalOpen, setAskModalOpen] = useState<boolean>(false);
   const [historyDrawerOpen, setHistoryDrawerOpen] = useState<boolean>(false);
+  const [advancedOpen, setAdvancedOpen] = useState<boolean>(false);
   const [currentSteps, setCurrentSteps] = useState<{ expr: string; res: string; steps?: string[] }>({
     expr: '',
     res: '',
@@ -340,7 +341,7 @@ export default function AurikrexCalcApp() {
   };
 
   return (
-    <main className="h-[100dvh] w-full max-w-md mx-auto flex flex-col overflow-hidden bg-gradient-to-b from-slate-950 via-aurikrex-bg to-aurikrex-bgDark shadow-2xl relative p-safe">
+    <main className="calculator-shell h-[100dvh] w-full max-w-md mx-auto flex flex-col overflow-hidden shadow-2xl relative p-safe">
       {/* 1. Header (44px) */}
       <Header
         shiftActive={shiftActive}
@@ -420,24 +421,14 @@ export default function AurikrexCalcApp() {
         />
       </section>
 
-      {/* 6. Function Panel (flex ratio 3, 5 swipeable pages) */}
-      <FunctionPanel
-        shiftActive={shiftActive}
-        shiftLocked={shiftLocked}
-        alphaActive={alphaActive}
-        invActive={invActive}
-        hypActive={hypActive}
-        onToggleShift={handleToggleShift}
-        onToggleAlpha={handleToggleAlpha}
-        onToggleInv={handleToggleInv}
-        onToggleHyp={handleToggleHyp}
-        onInsert={handleInsert}
-        onOpenConstants={() => setConstantsOpen(true)}
-        onOpenFormulaBank={() => setFormulaBankOpen(true)}
-        onOpenChem={() => setChemOpen(true)}
-        onOpenStats={() => setToolboxOpen(true)}
-      />
-
+      {/* 6. Quick access row: familiar calculator extras stay one tap away. */}
+      <div className="quick-actions" aria-label="Quick calculator actions">
+        <button type="button" onClick={() => handleInsert('Ans')} className="quick-action">Ans</button>
+        <button type="button" onClick={() => handleInsert('π')} className="quick-action">π</button>
+        <button type="button" onClick={() => handleInsert('(')} className="quick-action">(</button>
+        <button type="button" onClick={() => handleInsert(')')} className="quick-action">)</button>
+        <button type="button" onClick={() => setAdvancedOpen(true)} className="quick-action quick-action-primary">Advanced</button>
+      </div>
       {/* 7. Number Keypad (flex ratio 4, = key solid blue with angled corner) */}
       <NumberKeypad
         shiftActive={shiftActive}
@@ -448,6 +439,35 @@ export default function AurikrexCalcApp() {
         onEvaluate={handleEvaluate}
         onTogglePlusMinus={handleTogglePlusMinus}
       />
+
+      {/* Advanced scientific functions remain complete, but no longer crowd the primary keypad. */}
+      {advancedOpen && (
+        <div className="advanced-sheet-backdrop" role="presentation" onClick={() => setAdvancedOpen(false)}>
+          <section className="advanced-sheet" role="dialog" aria-modal="true" aria-label="Advanced calculator functions" onClick={(e) => e.stopPropagation()}>
+            <div className="advanced-sheet-header">
+              <div><p className="advanced-eyebrow">AURIKREX CALC</p><h2>Advanced functions</h2></div>
+              <button type="button" onClick={() => setAdvancedOpen(false)} className="advanced-close" aria-label="Close advanced functions">×</button>
+            </div>
+            <p className="advanced-description">Scientific, algebraic, statistical, and science tools are organized across swipeable pages.</p>
+            <FunctionPanel
+              shiftActive={shiftActive}
+              shiftLocked={shiftLocked}
+              alphaActive={alphaActive}
+              invActive={invActive}
+              hypActive={hypActive}
+              onToggleShift={handleToggleShift}
+              onToggleAlpha={handleToggleAlpha}
+              onToggleInv={handleToggleInv}
+              onToggleHyp={handleToggleHyp}
+              onInsert={handleInsert}
+              onOpenConstants={() => { setAdvancedOpen(false); setConstantsOpen(true); }}
+              onOpenFormulaBank={() => { setAdvancedOpen(false); setFormulaBankOpen(true); }}
+              onOpenChem={() => { setAdvancedOpen(false); setChemOpen(true); }}
+              onOpenStats={() => { setAdvancedOpen(false); setToolboxOpen(true); }}
+            />
+          </section>
+        </div>
+      )}
 
       {/* Modals */}
       <ToolboxModal
