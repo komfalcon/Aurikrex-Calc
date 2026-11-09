@@ -48,7 +48,7 @@ export const InputLine: React.FC<InputLineProps> = ({
     <div
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
-      className="h-[48px] min-h-[48px] px-4 flex flex-col justify-center border-b-2 border-blue-500/80 bg-slate-900/40 relative"
+      className="h-[64px] min-h-[64px] px-4 flex flex-col justify-center border-y border-blue-400/30 bg-slate-950/50 relative"
     >
       <div
         ref={containerRef}
@@ -56,7 +56,7 @@ export const InputLine: React.FC<InputLineProps> = ({
           // If clicked near end, move cursor to end
           onSetCursorPosition(value.length);
         }}
-        className="flex items-center text-slate-100 font-mono text-[26px] leading-none overflow-x-auto whitespace-nowrap scrollbar-none py-1 select-none"
+        className="flex items-center text-slate-100 font-mono text-[26px] leading-none font-semibold overflow-x-auto whitespace-nowrap scrollbar-none py-1 select-none"
       >
         <span>{beforeCursor}</span>
         {/* Blinking blue caret */}

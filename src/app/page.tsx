@@ -340,7 +340,7 @@ export default function AurikrexCalcApp() {
   };
 
   return (
-    <main className="h-[100dvh] w-full max-w-md mx-auto flex flex-col justify-between overflow-hidden bg-gradient-to-b from-aurikrex-bg to-aurikrex-bgDark shadow-2xl relative p-safe">
+    <main className="h-[100dvh] w-full max-w-md mx-auto flex flex-col overflow-hidden bg-gradient-to-b from-slate-950 via-aurikrex-bg to-aurikrex-bgDark shadow-2xl relative p-safe">
       {/* 1. Header (44px) */}
       <Header
         shiftActive={shiftActive}
@@ -355,14 +355,15 @@ export default function AurikrexCalcApp() {
         onOpenHistory={() => setHistoryDrawerOpen(true)}
       />
 
-      {/* 2. Tape (flex, scrolls inside, bottom-aligned, pull-down history) */}
-      <Tape
-        rows={tapeRows}
-        activeRowId={activeRowId}
-        onSelectRow={handleSelectTapeRow}
-        onClearTape={handleClearTape}
-        onOpenHistory={() => setHistoryDrawerOpen(true)}
-      />
+      {/* 2. Work area: tape owns the flexible space; controls keep their touch targets. */}
+      <section aria-label="Calculation workspace" className="min-h-0 flex-1 flex flex-col">
+        <Tape
+          rows={tapeRows}
+          activeRowId={activeRowId}
+          onSelectRow={handleSelectTapeRow}
+          onClearTape={handleClearTape}
+          onOpenHistory={() => setHistoryDrawerOpen(true)}
+        />
 
       {/* 3. Input Line (48px, mono, blue underline, custom caret) */}
       <InputLine
@@ -412,11 +413,12 @@ export default function AurikrexCalcApp() {
       />
 
       {/* 5. Unit Row (30px, cycles categories, unit chips) */}
-      <UnitRow
-        currentCategoryIndex={unitCategoryIndex}
-        onCycleCategory={() => setUnitCategoryIndex((i) => (i + 1) % 6)}
-        onSelectUnit={(u) => handleInsert(` ${u}`)}
-      />
+        <UnitRow
+          currentCategoryIndex={unitCategoryIndex}
+          onCycleCategory={() => setUnitCategoryIndex((i) => (i + 1) % 6)}
+          onSelectUnit={(u) => handleInsert(` ${u}`)}
+        />
+      </section>
 
       {/* 6. Function Panel (flex ratio 3, 5 swipeable pages) */}
       <FunctionPanel

@@ -24,15 +24,17 @@ export const NumberKeypad: React.FC<NumberKeypadProps> = ({
   onTogglePlusMinus,
 }) => {
   return (
-    <div className="flex-[4] grid grid-rows-4 grid-cols-5 gap-1.5 px-3 pb-3 bg-slate-900/30 select-none min-h-0">
+    <div className="flex-[4] grid grid-rows-4 grid-cols-5 gap-2 px-3 pb-3 pt-2 bg-slate-950/30 select-none min-h-0">
       {/* Row 1: 7, 8, 9, ⌫, AC */}
       <KeyButton label="7" action={() => onDigit('7')} className="text-lg font-semibold" />
       <KeyButton label="8" action={() => onDigit('8')} className="text-lg font-semibold" />
       <KeyButton label="9" action={() => onDigit('9')} className="text-lg font-semibold" />
       <button
+        type="button"
         onClick={onBackspace}
         className="aurikrex-key bg-slate-800 text-slate-300 hover:text-white"
         title="Backspace"
+        aria-label="Backspace"
       >
         <Delete className="w-5 h-5" />
       </button>

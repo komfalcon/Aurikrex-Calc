@@ -46,7 +46,7 @@ export const Header: React.FC<HeaderProps> = ({
   }, []);
 
   return (
-    <header className="relative z-30 h-[48px] min-h-[48px] max-h-[48px] px-2 sm:px-3 flex items-center justify-between border-b border-slate-800/80 bg-slate-900/60 backdrop-blur select-none touch-manipulation">
+    <header className="relative z-30 h-[56px] min-h-[56px] max-h-[56px] px-3 sm:px-4 flex items-center justify-between border-b border-slate-800/80 bg-slate-900/60 backdrop-blur select-none touch-manipulation">
       {/* Brand Logo & Name */}
       <div className="flex items-center gap-1.5 shrink-0">
         <div className="w-5 h-5 rounded-md bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shadow-sm shrink-0">
@@ -119,7 +119,7 @@ export const Header: React.FC<HeaderProps> = ({
         <button
           type="button"
           onClick={onToggleAngleMode}
-          className="text-[10px] sm:text-[11px] font-mono font-semibold px-2 py-1 min-h-[30px] rounded-full bg-slate-800 text-blue-300 border border-slate-700 hover:bg-slate-700 active:scale-95 transition-all cursor-pointer select-none touch-manipulation shrink-0"
+          className="text-[10px] sm:text-[11px] font-mono font-semibold px-2.5 py-1.5 min-h-[40px] rounded-full bg-slate-800 text-blue-300 border border-slate-700 hover:bg-slate-700 active:scale-95 transition-all cursor-pointer select-none touch-manipulation shrink-0"
           title="Toggle Angle Mode"
           aria-label="Toggle Angle Mode"
         >
@@ -130,7 +130,7 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             type="button"
             onClick={onOpenHistory}
-            className="p-1.5 min-w-[32px] min-h-[32px] rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 active:scale-95 transition-all cursor-pointer select-none touch-manipulation flex items-center justify-center shrink-0"
+            className="p-1.5 min-w-[44px] min-h-[44px] rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 active:scale-95 transition-all cursor-pointer select-none touch-manipulation flex items-center justify-center shrink-0"
             title="View Calculation History"
             aria-label="History"
           >
@@ -141,7 +141,7 @@ export const Header: React.FC<HeaderProps> = ({
         <button
           type="button"
           onClick={onOpenToolbox}
-          className="p-1.5 min-w-[32px] min-h-[32px] rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 active:scale-95 transition-all cursor-pointer select-none touch-manipulation flex items-center justify-center shrink-0"
+          className="p-1.5 min-w-[44px] min-h-[44px] rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 active:scale-95 transition-all cursor-pointer select-none touch-manipulation flex items-center justify-center shrink-0"
           title="Open Toolbox & Formulas"
           aria-label="Toolbox"
         >

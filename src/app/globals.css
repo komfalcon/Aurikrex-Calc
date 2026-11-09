@@ -5,13 +5,16 @@
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Lexend:wght@400;500;600;700&display=swap');
 
 :root {
-  --app-bg: #0F172A;
-  --app-bg-dark: #0B1222;
-  --accent-blue: #3B82F6;
-  --color-shift: #22D3EE;
-  --color-alpha: #A78BFA;
-  --color-inv: #FBBF24;
-  --color-hyp: #F472B6;
+  --app-bg: #0b1222;
+  --app-surface: #111c31;
+  --app-surface-raised: #17243b;
+  --app-border: rgba(148, 163, 184, 0.16);
+  --accent-blue: #60a5fa;
+  --accent-blue-strong: #3b82f6;
+  --color-shift: #22d3ee;
+  --color-alpha: #a78bfa;
+  --color-inv: #fbbf24;
+  --color-hyp: #f472b6;
 }
 
 * {
@@ -20,24 +23,46 @@
   user-select: none;
 }
 
+html {
+  background: var(--app-bg);
+}
+
 body {
   margin: 0;
   padding: 0;
-  background-color: var(--app-bg-dark);
-  color: #F8FAFC;
+  background:
+    radial-gradient(circle at 50% -10%, rgba(37, 99, 235, 0.16), transparent 38%),
+    var(--app-bg);
+  color: #f8fafc;
   font-family: 'Lexend', -apple-system, BlinkMacSystemFont, sans-serif;
   overflow: hidden;
   height: 100dvh;
   width: 100vw;
 }
 
-/* Key styling */
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+[role='button']:focus-visible {
+  outline: 2px solid var(--accent-blue);
+  outline-offset: 2px;
+}
+
+/* Calculator keys: a generous, quiet surface that stays usable at 320px. */
 .aurikrex-key {
   position: relative;
-  border-radius: 14px;
-  background-color: #1E293B;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 2px 4px rgba(0, 0, 0, 0.35);
-  transition: all 0.08s cubic-bezier(0.4, 0, 0.2, 1);
+  min-height: 44px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(30, 41, 59, 0.96), rgba(23, 34, 53, 0.96));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 2px 5px rgba(0, 0, 0, 0.26);
+  transition: transform 120ms ease, background-color 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -46,27 +71,29 @@ body {
   cursor: pointer;
 }
 
-.aurikrex-key:active {
-  transform: translateY(1px) scale(0.98);
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4);
-  background-color: #334155;
+.aurikrex-key:hover {
+  border-color: rgba(96, 165, 250, 0.44);
+  background: linear-gradient(180deg, rgba(37, 54, 80, 0.98), rgba(28, 43, 66, 0.98));
 }
 
-/* The "=" key is solid blue with one angled/chamfered bottom-right corner */
+.aurikrex-key:active {
+  transform: translateY(1px) scale(0.97);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.38);
+  background: #334155;
+}
+
 .aurikrex-equals-key {
-  background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%) !important;
-  color: #FFFFFF !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 3px 8px rgba(37, 99, 235, 0.45) !important;
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%) !important;
+  color: #fff !important;
+  border-color: rgba(147, 197, 253, 0.48) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.32), 0 4px 12px rgba(37, 99, 235, 0.38) !important;
   clip-path: polygon(0 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%);
-  border-radius: 14px;
 }
 
 .aurikrex-equals-key:active {
-  background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%) !important;
-  transform: translateY(1px) scale(0.98);
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
 }
 
-/* Diagonal cut left accent bar for active tape row */
 .tape-row-active {
   position: relative;
 }
@@ -77,13 +104,11 @@ body {
   left: 0;
   top: 10%;
   height: 80%;
-  width: 4px;
-  background-color: #3B82F6;
+  width: 3px;
+  background-color: var(--accent-blue);
   border-radius: 2px;
-  clip-path: polygon(0 0, 100% 15%, 100% 85%, 0 100%);
 }
 
-/* Safe area padding utilities */
 .p-safe {
   padding-top: env(safe-area-inset-top, 0px);
   padding-bottom: env(safe-area-inset-bottom, 0px);
@@ -91,7 +116,10 @@ body {
   padding-right: env(safe-area-inset-right, 0px);
 }
 
-/* Custom scrollbar */
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
 ::-webkit-scrollbar {
   width: 4px;
   height: 4px;
@@ -104,4 +132,15 @@ body {
 ::-webkit-scrollbar-thumb {
   background: #334155;
   border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
 }

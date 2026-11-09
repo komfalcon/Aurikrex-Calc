@@ -78,6 +78,7 @@ export const KeyButton: React.FC<KeyButtonProps> = ({
   if (isEquals) {
     return (
       <button
+        type="button"
         onClick={handleClick}
         title={tooltip || 'Equals'}
         className={`aurikrex-key aurikrex-equals-key font-mono font-bold text-xl ${className}`}
@@ -90,6 +91,7 @@ export const KeyButton: React.FC<KeyButtonProps> = ({
   if (isAC) {
     return (
       <button
+        type="button"
         onClick={handleClick}
         title={tooltip || 'All Clear'}
         className={`aurikrex-key bg-red-950/40 text-red-400 hover:bg-red-900/50 border border-red-900/50 font-mono font-bold text-base active:bg-red-800/60 ${className}`}
@@ -101,6 +103,7 @@ export const KeyButton: React.FC<KeyButtonProps> = ({
 
   return (
     <button
+      type="button"
       onClick={handleClick}
       title={tooltip}
       className={`aurikrex-key relative text-sm font-mono overflow-hidden ${
