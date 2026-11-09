@@ -30,7 +30,7 @@ export default function RootLayout({
     <html lang="en" className="dark">
       <head>
         <meta name="mobile-web-app-capable" content="yes" />
-        <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+        <link rel="icon" href="/icon-192.png" type="image/png" />
         <link rel="apple-touch-icon" href="/icon-192.png" />
         <link rel="icon" href="/icon-192.png" sizes="192x192" type="image/png" />
       </head>
