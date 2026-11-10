@@ -59,7 +59,7 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
 
   return (
     <div
-      className="absolute inset-0 z-40 bg-black/60 backdrop-blur-sm flex flex-col justify-start animate-in fade-in duration-200"
+      className="tool-overlay absolute inset-0 z-40 bg-black/60 backdrop-blur-sm flex flex-col justify-start animate-in fade-in duration-200"
       onClick={onClose}
     >
       <div
