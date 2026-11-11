@@ -168,3 +168,23 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, [role='button
   background: var(--surface) !important;
   border-color: var(--line) !important;
 }
+.tool-overlay [class*="text-purple-300"],
+.tool-overlay [class*="text-purple-400"] { color: #6d28d9 !important; }
+.tool-overlay [class*="text-blue-300"],
+.tool-overlay [class*="text-blue-400"] { color: #1d4ed8 !important; }
+.tool-overlay [class*="text-emerald-300"],
+.tool-overlay [class*="text-emerald-400"] { color: #047857 !important; }
+.tool-overlay [class*="text-amber-400"] { color: #a16207 !important; }
+.tool-overlay [class*="bg-red-950"] {
+  background: #fff1f2 !important;
+}
+.tool-overlay [class*="border-red-800"] {
+  border-color: #fda4af !important;
+}
+.tool-overlay [class*="text-red-300"],
+.tool-overlay [class*="text-red-400"] { color: #b42318 !important; }
+.tool-overlay button:disabled {
+  background: #e2e8f0 !important;
+  color: #52606d !important;
+  opacity: 1 !important;
+}
