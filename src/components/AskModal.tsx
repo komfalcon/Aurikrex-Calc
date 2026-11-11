@@ -23,6 +23,7 @@ export const AskModal: React.FC<AskModalProps> = ({
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [dailyNeuronsRemaining, setDailyNeuronsRemaining] = useState<number>(10000);
   const [resultSetup, setResultSetup] = useState<any>(null);
+  const [assistantAnswer, setAssistantAnswer] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
@@ -78,54 +79,46 @@ export const AskModal: React.FC<AskModalProps> = ({
     setIsLoading(true);
     setErrorMsg(null);
     setResultSetup(null);
+    setAssistantAnswer(null);
 
     try {
-      // Local setup fallback / AI solver parsing
-      // The AI only identifies the formula and variables; the engine computes!
-      const lower = promptInput.toLowerCase();
-      let matchedFormula = null;
-      const extractedVars: Record<string, number> = {};
+      const response = await fetch('/api/ask', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          prompt: promptInput.trim(),
+          formulas: FORMULA_BANK.map(({ id, name, expression, variables }) => ({
+            id,
+            name,
+            expression,
+            variables: variables.map(({ symbol, name: variableName, defaultUnit }) => ({ symbol, name: variableName, defaultUnit })),
+          })),
+        }),
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(payload?.error || 'Workers AI request failed.');
 
-      if (lower.includes('kinetic energy') || (lower.includes('mass') && (lower.includes('speed') || lower.includes('velocity')))) {
-        matchedFormula = FORMULA_BANK.find((f) => f.id === 'mech-ke');
-        const massMatch = lower.match(/(\d+(?:\.\d+)?)\s*(?:kg|kilogram)/);
-        const velMatch = lower.match(/(\d+(?:\.\d+)?)\s*(?:m\/s|meter)/);
-        if (massMatch) extractedVars['m'] = parseFloat(massMatch[1]);
-        if (velMatch) extractedVars['v'] = parseFloat(velMatch[1]);
-      } else if (lower.includes('force') || (lower.includes('mass') && lower.includes('accelerat'))) {
-        matchedFormula = FORMULA_BANK.find((f) => f.id === 'mech-f-ma');
-        const massMatch = lower.match(/(\d+(?:\.\d+)?)\s*(?:kg|kilogram)/);
-        const accMatch = lower.match(/(\d+(?:\.\d+)?)\s*(?:m\/s\^?2|m\/s²)/);
-        if (massMatch) extractedVars['m'] = parseFloat(massMatch[1]);
-        if (accMatch) extractedVars['a'] = parseFloat(accMatch[1]);
-      } else if (lower.includes('ohm') || lower.includes('voltage') || lower.includes('resistance')) {
-        matchedFormula = FORMULA_BANK.find((f) => f.id === 'elec-ohms-law');
-        const vMatch = lower.match(/(\d+(?:\.\d+)?)\s*(?:v|volt)/);
-        const iMatch = lower.match(/(\d+(?:\.\d+)?)\s*(?:a|amp)/);
-        const rMatch = lower.match(/(\d+(?:\.\d+)?)\s*(?:ohm|Ω)/);
-        if (vMatch) extractedVars['V'] = parseFloat(vMatch[1]);
-        if (iMatch) extractedVars['I'] = parseFloat(iMatch[1]);
-        if (rMatch) extractedVars['R'] = parseFloat(rMatch[1]);
-      }
+      const newNeurons = Math.max(0, dailyNeuronsRemaining - 460);
+      setDailyNeuronsRemaining(newNeurons);
+      localStorage.setItem('aurikrex_neurons_remaining', newNeurons.toString());
 
-      if (matchedFormula) {
-        // Aurikrex engine validates and computes (FR-33)
+      if (payload?.kind === 'answer' && typeof payload.answer === 'string') {
+        setAssistantAnswer(payload.answer);
+      } else if (payload?.kind === 'formula') {
+        const matchedFormula = FORMULA_BANK.find((formula) => formula.id === payload.formulaId);
+        const extractedVars = Object.fromEntries(
+          Object.entries(payload.variables ?? {}).filter(([symbol, value]) =>
+            matchedFormula?.variables.some((variable) => variable.symbol === symbol) && typeof value === 'number' && Number.isFinite(value)
+          )
+        ) as Record<string, number>;
+        if (!matchedFormula || Object.keys(extractedVars).length === 0) throw new Error('The AI did not return a recognized formula.');
         const computed = solveFormula(matchedFormula, extractedVars);
-        const newNeurons = Math.max(0, dailyNeuronsRemaining - 460);
-        setDailyNeuronsRemaining(newNeurons);
-        localStorage.setItem('aurikrex_neurons_remaining', newNeurons.toString());
-
-        setResultSetup({
-          formula: matchedFormula,
-          variables: extractedVars,
-          solved: computed,
-        });
+        setResultSetup({ formula: matchedFormula, variables: extractedVars, solved: computed, explanation: payload.explanation });
       } else {
-        // Safe rejection per FR-33: "Couldn't set this up safely instead of a guess"
-        setErrorMsg("Couldn't set this up safely into a verified formula.");
+        throw new Error('The AI returned an unsupported response.');
       }
     } catch (err: any) {
-      setErrorMsg("Couldn't set this up safely.");
+      setErrorMsg(err?.message || "Couldn't set this up safely.");
     } finally {
       setIsLoading(false);
     }
@@ -237,6 +230,16 @@ export const AskModal: React.FC<AskModalProps> = ({
             <div className="p-3 bg-red-950/50 border border-red-800/60 rounded-xl text-red-300 flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
               <span>{errorMsg}</span>
+            </div>
+          )}
+
+          {assistantAnswer && (
+            <div className="bg-slate-950 p-3.5 rounded-xl border border-blue-500/30 text-slate-200 leading-relaxed">
+              <div className="flex items-center gap-2 text-blue-700 font-semibold text-xs border-b border-slate-800 pb-2 mb-2">
+                <Sparkles className="w-4 h-4" />
+                <span>Aurikrex AI</span>
+              </div>
+              <p className="whitespace-pre-wrap">{assistantAnswer}</p>
             </div>
           )}
 
