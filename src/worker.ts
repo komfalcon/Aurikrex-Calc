@@ -73,7 +73,7 @@ For a formula response, choose only an exact formula id from the catalog, copy o
 Formula catalog:
 ${formulaCatalog}`;
 
-  const endpoint = `https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(env.CLOUDFLARE_ACCOUNT_ID)}/ai/run/${encodeURIComponent(env.AI_MODEL || '@cf/meta/llama-3.1-8b-instruct')}`;
+  const endpoint = `https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(env.CLOUDFLARE_ACCOUNT_ID)}/ai/run/${env.AI_MODEL || '@cf/meta/llama-3.1-8b-instruct'}`;
   let aiResponse: Response;
   try {
     aiResponse = await fetch(endpoint, {
