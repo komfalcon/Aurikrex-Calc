@@ -33,6 +33,7 @@ function parseJsonObject(text: string): any | null {
   try {
     return JSON.parse(cleaned);
   } catch {
+    const candidates: any[] = [];
     for (let start = cleaned.length - 1; start >= 0; start -= 1) {
       if (cleaned[start] !== '{') continue;
       let depth = 0;
@@ -53,7 +54,7 @@ function parseJsonObject(text: string): any | null {
           if (depth === 0) {
             try {
               const candidate = JSON.parse(cleaned.slice(start, end + 1));
-              if (candidate?.kind === 'answer' || candidate?.kind === 'formula') return candidate;
+              if (candidate?.kind === 'answer' || candidate?.kind === 'formula') candidates.push(candidate);
             } catch {
               // Keep scanning for the next balanced object.
             }
@@ -62,7 +63,11 @@ function parseJsonObject(text: string): any | null {
         }
       }
     }
-    return null;
+    const formula = candidates.find((candidate) => candidate.kind === 'formula');
+    if (formula) return formula;
+    return candidates
+      .filter((candidate) => typeof candidate.answer === 'string')
+      .sort((a, b) => a.answer.length - b.answer.length)[0] ?? null;
   }
 }
 
@@ -88,7 +93,8 @@ async function handleAsk(request: Request, env: Env): Promise<Response> {
     .join('\n');
 
   const systemPrompt = `You are Aurikrex Calc AI. Help with general questions and science/math word problems.
-Return exactly one JSON object and no markdown. Use one of these shapes:
+Return exactly one JSON object, with no markdown, explanations, code, multiple choices, or reasoning.
+Use one of these shapes:
 {"kind":"answer","answer":"short helpful answer"}
 {"kind":"formula","formulaId":"exact-id-from-catalog","variables":{"symbol":number},"explanation":"brief explanation"}
 For a formula response, choose only an exact formula id from the catalog, copy only numeric values explicitly present in the problem, and leave exactly one formula variable unknown for the calculator engine to solve. Never invent missing values. If the question is not a solvable calculator word problem, return kind=answer instead. Keep general answers concise and factual.
@@ -105,8 +111,12 @@ ${formulaCatalog}`;
         'content-type': 'application/json',
       },
       body: JSON.stringify({
-        prompt: `${systemPrompt}\n\nUser question:\n${prompt}`,
-        max_tokens: 700,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: prompt },
+        ],
+        max_tokens: 300,
+        temperature: 0.2,
       }),
     });
   } catch {
