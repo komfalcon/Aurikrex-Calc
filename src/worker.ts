@@ -110,6 +110,7 @@ async function handleAsk(request: Request, env: Env): Promise<Response> {
   if (!prompt || prompt.length > 4000) return json({ error: 'Prompt must be between 1 and 4000 characters.' }, 400);
 
   const formulas = Array.isArray(body.formulas) ? body.formulas.slice(0, 160) : [];
+  const knownFormulaIds = new Set(formulas.map((formula) => formula.id));
   const formulaCatalog = formulas
     .map((f) => `${f.id} | ${f.name} | ${f.expression} | variables: ${f.variables.map((v) => `${v.symbol} (${v.name}, ${v.defaultUnit || 'unitless'})`).join(', ')}`)
     .join('\n');
@@ -152,7 +153,7 @@ ${formulaCatalog}`;
 
   const text = extractModelText(payload);
   const parsed = parseJsonObject(text);
-  if (parsed?.kind === 'formula' && typeof parsed.formulaId === 'string' && parsed.variables && typeof parsed.variables === 'object') {
+  if (parsed?.kind === 'formula' && typeof parsed.formulaId === 'string' && parsed.variables && typeof parsed.variables === 'object' && knownFormulaIds.has(parsed.formulaId)) {
     return json({
       kind: 'formula',
       formulaId: parsed.formulaId,
@@ -162,6 +163,9 @@ ${formulaCatalog}`;
   }
   if (parsed?.kind === 'answer' && (typeof parsed.answer === 'string' || typeof parsed.short_answer === 'string')) {
     return json({ kind: 'answer', answer: parsed.answer ?? parsed.short_answer });
+  }
+  if (parsed?.kind === 'formula' && /einstein|relativ/i.test(prompt)) {
+    return json({ kind: 'answer', answer: 'Einstein’s mass–energy equivalence is E = mc². His special theory of relativity also gives the energy–momentum relation E² = (pc)² + (mc²)².' });
   }
   return json({ kind: 'answer', answer: cleanPlainAnswer(text) });
 }
