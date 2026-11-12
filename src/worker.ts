@@ -19,11 +19,15 @@ const json = (body: unknown, status = 200) =>
   });
 
 function extractModelText(payload: any): string {
-  const response = payload?.result?.response ?? payload?.response ?? payload?.result;
+  const result = payload?.result;
+  const chatContent = result?.choices?.[0]?.message?.content ?? result?.choices?.[0]?.text;
+  if (typeof chatContent === 'string') return chatContent;
+  const response = result?.response ?? payload?.response ?? result;
   if (typeof response === 'string') return response;
   if (response && typeof response === 'object') {
     const choice = response.choices?.[0]?.message?.content ?? response.choices?.[0]?.text;
     if (typeof choice === 'string') return choice;
+    if (typeof response.kind === 'string') return JSON.stringify(response);
   }
   return '';
 }
@@ -66,8 +70,8 @@ function parseJsonObject(text: string): any | null {
     const formula = candidates.find((candidate) => candidate.kind === 'formula');
     if (formula) return formula;
     return candidates
-      .filter((candidate) => typeof candidate.answer === 'string')
-      .sort((a, b) => a.answer.length - b.answer.length)[0] ?? null;
+      .filter((candidate) => typeof candidate.answer === 'string' || typeof candidate.short_answer === 'string')
+      .sort((a, b) => (a.answer ?? a.short_answer).length - (b.answer ?? b.short_answer).length)[0] ?? null;
   }
 }
 
@@ -149,8 +153,8 @@ ${formulaCatalog}`;
       explanation: typeof parsed.explanation === 'string' ? parsed.explanation : '',
     });
   }
-  if (parsed?.kind === 'answer' && typeof parsed.answer === 'string') {
-    return json({ kind: 'answer', answer: parsed.answer });
+  if (parsed?.kind === 'answer' && (typeof parsed.answer === 'string' || typeof parsed.short_answer === 'string')) {
+    return json({ kind: 'answer', answer: parsed.answer ?? parsed.short_answer });
   }
   return json({ kind: 'answer', answer: cleanPlainAnswer(text) });
 }
