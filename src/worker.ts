@@ -33,14 +33,36 @@ function parseJsonObject(text: string): any | null {
   try {
     return JSON.parse(cleaned);
   } catch {
-    const start = cleaned.indexOf('{');
-    const end = cleaned.lastIndexOf('}');
-    if (start < 0 || end <= start) return null;
-    try {
-      return JSON.parse(cleaned.slice(start, end + 1));
-    } catch {
-      return null;
+    for (let start = cleaned.length - 1; start >= 0; start -= 1) {
+      if (cleaned[start] !== '{') continue;
+      let depth = 0;
+      let inString = false;
+      let escaped = false;
+      for (let end = start; end < cleaned.length; end += 1) {
+        const char = cleaned[end];
+        if (inString) {
+          if (escaped) escaped = false;
+          else if (char === '\\') escaped = true;
+          else if (char === '"') inString = false;
+          continue;
+        }
+        if (char === '"') inString = true;
+        else if (char === '{') depth += 1;
+        else if (char === '}') {
+          depth -= 1;
+          if (depth === 0) {
+            try {
+              const candidate = JSON.parse(cleaned.slice(start, end + 1));
+              if (candidate?.kind === 'answer' || candidate?.kind === 'formula') return candidate;
+            } catch {
+              // Keep scanning for the next balanced object.
+            }
+            break;
+          }
+        }
+      }
     }
+    return null;
   }
 }
 
