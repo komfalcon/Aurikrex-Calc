@@ -1,7 +1,7 @@
 {
   "name": "aurikrex-calc",
   "version": "1.0.0",
-  "description": "Aurikrex Calc: Offline-first scientific calculator PWA for science students",
+  "description": "Aurikrex Calculator: Offline-first scientific calculator PWA for science students",
   "private": true,
   "scripts": {
     "dev": "next dev",

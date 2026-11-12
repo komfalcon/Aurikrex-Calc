@@ -2,13 +2,13 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Aurikrex Calc · Scientific PWA',
+  title: 'Aurikrex Calculator · Scientific PWA',
   description: 'Offline-first scientific calculator PWA for science students with live editable tape, unit dimensional analysis, and formula bank.',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'Aurikrex Calc',
+    title: 'A-Calc+',
   },
 };
 

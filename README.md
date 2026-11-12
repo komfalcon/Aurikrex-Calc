@@ -1,4 +1,4 @@
-# Aurikrex Calc ⚡
+# Aurikrex Calculator ⚡
 
 > **Offline-first scientific calculator PWA for Falcon’s own use**  
 > Built to feel like an unfair advantage for study, research, and lesson prep.  

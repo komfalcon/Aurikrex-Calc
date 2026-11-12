@@ -75,7 +75,7 @@ export async function exportDatabaseToJSON(): Promise<string> {
   const settings = await db.settings.toArray();
 
   const backup = {
-    app: 'Aurikrex Calc',
+    app: 'Aurikrex Calculator',
     version: '1.0.0',
     timestamp: new Date().toISOString(),
     data: {

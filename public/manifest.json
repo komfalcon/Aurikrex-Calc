@@ -1,6 +1,6 @@
 {
-  "name": "Aurikrex Calc",
-  "short_name": "Aurikrex",
+  "name": "Aurikrex Calculator",
+  "short_name": "A-Calc+",
   "description": "Offline-first scientific calculator PWA for science students",
   "start_url": "/",
   "display": "standalone",
