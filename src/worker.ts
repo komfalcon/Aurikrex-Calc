@@ -71,6 +71,17 @@ function parseJsonObject(text: string): any | null {
   }
 }
 
+function cleanPlainAnswer(text: string): string {
+  const embeddedAnswers = Array.from(text.matchAll(/["']answer["']\s*:\s*["']([^"']+)["']/gi)).map((match) => match[1].trim());
+  if (embeddedAnswers.length) return embeddedAnswers.sort((a, b) => a.length - b.length)[0];
+  const cleaned = text
+    .replace(/<think>[\s\S]*?<\/think>/gi, '')
+    .replace(/```[\s\S]*?```/g, '')
+    .replace(/^\s*(?:step\s*\d+|action|final answer)\s*:\s*/gim, '')
+    .trim();
+  return cleaned.slice(0, 1200) || 'I could not produce a reliable answer for that question.';
+}
+
 async function handleAsk(request: Request, env: Env): Promise<Response> {
   if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
   if (!env.CF_API_TOKEN || !env.CLOUDFLARE_ACCOUNT_ID) {
@@ -141,7 +152,7 @@ ${formulaCatalog}`;
   if (parsed?.kind === 'answer' && typeof parsed.answer === 'string') {
     return json({ kind: 'answer', answer: parsed.answer });
   }
-  return json({ kind: 'answer', answer: text || 'I could not produce a reliable answer for that question.' });
+  return json({ kind: 'answer', answer: cleanPlainAnswer(text) });
 }
 
 export default {
