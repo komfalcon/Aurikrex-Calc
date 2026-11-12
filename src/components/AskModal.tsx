@@ -82,7 +82,10 @@ export const AskModal: React.FC<AskModalProps> = ({
     setAssistantAnswer(null);
 
     try {
-      const response = await fetch('/api/ask', {
+      const apiUrl = typeof window !== 'undefined' && window.location.hostname === 'aurikrex-calc.moparaji57.workers.dev'
+        ? '/api/ask'
+        : 'https://aurikrex-calc.moparaji57.workers.dev/api/ask';
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({

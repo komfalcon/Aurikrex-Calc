@@ -1,5 +1,5 @@
 // Aurikrex Calc Service Worker
-const CACHE_NAME = 'aurikrex-calc-v1';
+const CACHE_NAME = 'aurikrex-calc-v2';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',

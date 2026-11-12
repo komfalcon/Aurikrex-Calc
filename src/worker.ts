@@ -12,10 +12,16 @@ type FormulaSummary = {
   variables: { symbol: string; name: string; defaultUnit: string }[];
 };
 
+const corsHeaders = {
+  'access-control-allow-origin': '*',
+  'access-control-allow-methods': 'POST, OPTIONS',
+  'access-control-allow-headers': 'content-type',
+};
+
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
     status,
-    headers: { 'content-type': 'application/json; charset=utf-8' },
+    headers: { 'content-type': 'application/json; charset=utf-8', ...corsHeaders },
   });
 
 function extractModelText(payload: any): string {
@@ -87,6 +93,7 @@ function cleanPlainAnswer(text: string): string {
 }
 
 async function handleAsk(request: Request, env: Env): Promise<Response> {
+  if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: corsHeaders });
   if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
   if (!env.CF_API_TOKEN || !env.CLOUDFLARE_ACCOUNT_ID) {
     return json({ error: 'Workers AI is not configured on this deployment.' }, 503);
