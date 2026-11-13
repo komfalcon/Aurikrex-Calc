@@ -32,7 +32,7 @@ export const Header: React.FC<HeaderProps> = ({ angleMode, onToggleAngleMode, on
       <div className="brand-lockup flex items-center gap-3 min-w-0">
         <div className="w-9 h-9 rounded-xl bg-slate-900 flex items-center justify-center shadow-sm overflow-hidden"><img src="/aurikrex-logo.png" alt="" className="w-8 h-8 object-contain" /></div>
         <div className="min-w-0">
-          <div className="brand-wordmark text-[13px] font-extrabold tracking-[0.16em] text-slate-900 leading-tight">AURIKREX</div>
+          <div className="brand-wordmark text-[13px] font-extrabold tracking-[0.08em] text-slate-900 leading-tight">A-Calc+</div>
           <div className="brand-subtitle text-[10px] font-semibold tracking-wide text-slate-500">CALCULATOR</div>
         </div>
       </div>
