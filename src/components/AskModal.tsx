@@ -239,8 +239,7 @@ export const AskModal: React.FC<AskModalProps> = ({
           {assistantAnswer && (
             <div className="bg-slate-950 p-3.5 rounded-xl border border-blue-500/30 text-slate-200 leading-relaxed">
               <div className="flex items-center gap-2 text-blue-700 font-semibold text-xs border-b border-slate-800 pb-2 mb-2">
-                <Sparkles className="w-4 h-4" />
-                <span>FalkeAI</span>
+                <span>A-Calc+ Assistant</span>
               </div>
               <p className="whitespace-pre-wrap">{assistantAnswer}</p>
             </div>

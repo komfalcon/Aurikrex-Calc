@@ -115,7 +115,7 @@ async function handleAsk(request: Request, env: Env): Promise<Response> {
     .map((f) => `${f.id} | ${f.name} | ${f.expression} | variables: ${f.variables.map((v) => `${v.symbol} (${v.name}, ${v.defaultUnit || 'unitless'})`).join(', ')}`)
     .join('\n');
 
-  const systemPrompt = `You are FalkeAI, the AI assistant inside Aurikrex Calculator. Help with general questions and science/math word problems.
+  const systemPrompt = `You are the A-Calc+ Assistant. Help with general questions and science/math word problems.
 Return exactly one JSON object, with no markdown, explanations, code, multiple choices, or reasoning.
 Use one of these shapes:
 {"kind":"answer","answer":"short helpful answer"}
