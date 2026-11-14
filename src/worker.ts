@@ -12,6 +12,12 @@ type FormulaSummary = {
   variables: { symbol: string; name: string; defaultUnit: string }[];
 };
 
+import {
+  calculateModelUsage,
+  DEFAULT_AI_MODEL,
+  estimateTokensFromText,
+} from './ai/usage';
+
 const corsHeaders = {
   'access-control-allow-origin': '*',
   'access-control-allow-methods': 'POST, OPTIONS',
@@ -26,7 +32,10 @@ const json = (body: unknown, status = 200) =>
 
 function extractModelText(payload: any): string {
   const result = payload?.result;
-  const chatContent = result?.choices?.[0]?.message?.content ?? result?.choices?.[0]?.text;
+  const chatContent = payload?.choices?.[0]?.message?.content
+    ?? payload?.choices?.[0]?.text
+    ?? result?.choices?.[0]?.message?.content
+    ?? result?.choices?.[0]?.text;
   if (typeof chatContent === 'string') return chatContent;
   const response = result?.response ?? payload?.response ?? result;
   if (typeof response === 'string') return response;
@@ -36,6 +45,17 @@ function extractModelText(payload: any): string {
     if (typeof response.kind === 'string') return JSON.stringify(response);
   }
   return '';
+}
+
+function readProviderTokenUsage(payload: any): { promptTokens: number; completionTokens: number } | null {
+  const usage = payload?.usage ?? payload?.result?.usage;
+  const promptTokens = usage?.prompt_tokens ?? usage?.input_tokens;
+  const completionTokens = usage?.completion_tokens ?? usage?.output_tokens;
+  if (
+    typeof promptTokens !== 'number' || !Number.isFinite(promptTokens) || promptTokens < 0 ||
+    typeof completionTokens !== 'number' || !Number.isFinite(completionTokens) || completionTokens < 0
+  ) return null;
+  return { promptTokens, completionTokens };
 }
 
 function parseJsonObject(text: string): any | null {
@@ -124,7 +144,8 @@ For a formula response, choose only an exact formula id from the catalog, copy o
 Formula catalog:
 ${formulaCatalog}`;
 
-  const endpoint = `https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(env.CLOUDFLARE_ACCOUNT_ID)}/ai/run/${env.AI_MODEL || '@cf/meta/llama-3.1-8b-instruct'}`;
+  const model = env.AI_MODEL || DEFAULT_AI_MODEL;
+  const endpoint = `https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(env.CLOUDFLARE_ACCOUNT_ID)}/ai/v1/chat/completions`;
   let aiResponse: Response;
   try {
     aiResponse = await fetch(endpoint, {
@@ -134,12 +155,14 @@ ${formulaCatalog}`;
         'content-type': 'application/json',
       },
       body: JSON.stringify({
+        model,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: prompt },
         ],
         max_tokens: 300,
         temperature: 0.2,
+        stream: false,
       }),
     });
   } catch {
@@ -148,10 +171,17 @@ ${formulaCatalog}`;
 
   const payload = await aiResponse.json().catch(() => null) as any;
   if (!aiResponse.ok || payload?.success === false) {
-    return json({ error: 'Cloudflare Workers AI rejected the request.', details: payload?.errors ?? [] }, 502);
+    return json({
+      error: 'Cloudflare Workers AI rejected the request.',
+      details: payload?.errors ?? (payload?.error ? [payload.error] : []),
+    }, 502);
   }
 
   const text = extractModelText(payload);
+  const providerUsage = readProviderTokenUsage(payload);
+  const promptTokens = providerUsage?.promptTokens ?? (estimateTokensFromText(`${systemPrompt}\n${prompt}`) + 8);
+  const completionTokens = providerUsage?.completionTokens ?? estimateTokensFromText(text);
+  const usage = calculateModelUsage(model, promptTokens, completionTokens, Boolean(providerUsage));
   const parsed = parseJsonObject(text);
   if (parsed?.kind === 'formula' && typeof parsed.formulaId === 'string' && parsed.variables && typeof parsed.variables === 'object' && knownFormulaIds.has(parsed.formulaId)) {
     return json({
@@ -159,15 +189,16 @@ ${formulaCatalog}`;
       formulaId: parsed.formulaId,
       variables: parsed.variables,
       explanation: typeof parsed.explanation === 'string' ? parsed.explanation : '',
+      usage,
     });
   }
   if (parsed?.kind === 'answer' && (typeof parsed.answer === 'string' || typeof parsed.short_answer === 'string')) {
-    return json({ kind: 'answer', answer: parsed.answer ?? parsed.short_answer });
+    return json({ kind: 'answer', answer: parsed.answer ?? parsed.short_answer, usage });
   }
   if (parsed?.kind === 'formula' && /einstein|relativ/i.test(prompt)) {
-    return json({ kind: 'answer', answer: 'Einstein’s mass–energy equivalence is E = mc². His special theory of relativity also gives the energy–momentum relation E² = (pc)² + (mc²)².' });
+    return json({ kind: 'answer', answer: 'Einstein’s mass–energy equivalence is E = mc². His special theory of relativity also gives the energy–momentum relation E² = (pc)² + (mc²)².', usage });
   }
-  return json({ kind: 'answer', answer: cleanPlainAnswer(text) });
+  return json({ kind: 'answer', answer: cleanPlainAnswer(text), usage });
 }
 
 export default {

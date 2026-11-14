@@ -70,9 +70,10 @@ version() -> JSON string
 ---
 
 ### 3. Ask (AI Word-Problem Setup)
-- **DeepSeek on Cloudflare Workers AI**: Configured for `@cf/deepseek-ai/deepseek-r1-distill-qwen-32b` within Cloudflare's free daily 10,000 Neurons allocation.
-- **Passphrase-Protected**: Falcon's personal passphrase stored locally on device protects the Cloudflare Worker budget.
+- **Cloudflare Workers AI model**: The deployed `AI_MODEL` is `@cf/meta/llama-3.1-8b-instruct` (Llama 3.1 8B); the old DeepSeek description was stale.
+- **Local device prompt only**: The passphrase is stored locally and is not validated by the Worker; it does not secure the API or protect the account budget.
 - **Formula & Variable Extraction**: The AI outputs structured JSON; the Aurikrex engine computes the result.
+- **Neuron meter**: Uses returned prompt/completion token counts and the model's published input/output neuron rates. If Cloudflare omits usage counts, the meter marks its text-length-based token count as an estimate. The displayed daily total is stored on this device and resets by UTC date; it does not include other Workers AI traffic on the Cloudflare account.
 - **Offline Safety**: Disables visibly with an "online only" badge when disconnected.
 
 ---

@@ -3,6 +3,61 @@
 import React, { useState, useEffect } from 'react';
 import { X, Sparkles, WifiOff, ShieldCheck, Send, CheckCircle2, AlertTriangle, Key } from 'lucide-react';
 import { FORMULA_BANK, solveFormula } from '../engine/formulas';
+import {
+  addUsageToDaily,
+  AIUsageSummary,
+  createEmptyDailyUsage,
+  DAILY_FREE_NEURON_LIMIT,
+  DEFAULT_AI_MODEL,
+  getUtcDayKey,
+  DailyNeuronUsage,
+  MODEL_NEURON_PRICING,
+  normalizeDailyUsage,
+  USD_PER_1_000_NEURONS,
+} from '../ai/usage';
+
+const DAILY_USAGE_STORAGE_KEY = 'aurikrex_ai_daily_usage_v2';
+const LAST_USAGE_STORAGE_KEY = 'aurikrex_ai_last_usage_v2';
+
+function readDailyUsage(): DailyNeuronUsage {
+  const utcDay = getUtcDayKey();
+  if (typeof window === 'undefined') return createEmptyDailyUsage(utcDay);
+  try {
+    const raw = localStorage.getItem(DAILY_USAGE_STORAGE_KEY);
+    const saved = raw ? JSON.parse(raw) : null;
+    const normalized = normalizeDailyUsage(saved, utcDay);
+    if (!saved || saved.utcDay !== utcDay) {
+      localStorage.setItem(DAILY_USAGE_STORAGE_KEY, JSON.stringify(normalized));
+    }
+    localStorage.removeItem('aurikrex_neurons_remaining');
+    return normalized;
+  } catch {
+    return createEmptyDailyUsage(utcDay);
+  }
+}
+
+function readLastUsage(utcDay: string): AIUsageSummary | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(LAST_USAGE_STORAGE_KEY);
+    if (!raw) return null;
+    const saved = JSON.parse(raw);
+    const usage = saved?.usage as AIUsageSummary | undefined;
+    if (
+      saved?.utcDay !== utcDay || typeof usage?.model !== 'string' ||
+      typeof usage.promptTokens !== 'number' || typeof usage.completionTokens !== 'number'
+    ) return null;
+    return usage;
+  } catch {
+    return null;
+  }
+}
+
+function formatModelName(model: string): string {
+  if (model === DEFAULT_AI_MODEL) return 'Llama 3.1 8B';
+  if (model === '@cf/deepseek-ai/deepseek-r1-distill-qwen-32b') return 'DeepSeek R1 Distill Qwen 32B';
+  return model;
+}
 
 interface AskModalProps {
   isOpen: boolean;
@@ -21,18 +76,35 @@ export const AskModal: React.FC<AskModalProps> = ({
   const [showPassphraseInput, setShowPassphraseInput] = useState<boolean>(false);
   const [promptInput, setPromptInput] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [dailyNeuronsRemaining, setDailyNeuronsRemaining] = useState<number>(10000);
+  const [dailyUsage, setDailyUsage] = useState<DailyNeuronUsage>(() => createEmptyDailyUsage());
+  const [lastUsage, setLastUsage] = useState<AIUsageSummary | null>(null);
+  const [usageNotice, setUsageNotice] = useState<string | null>(null);
   const [resultSetup, setResultSetup] = useState<any>(null);
   const [assistantAnswer, setAssistantAnswer] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const dailyNeuronsRemaining = Math.max(0, DAILY_FREE_NEURON_LIMIT - dailyUsage.neuronsUsed);
+  const activeModel = lastUsage?.model ?? DEFAULT_AI_MODEL;
+  const modelPricing = MODEL_NEURON_PRICING[activeModel];
+  const dollarValuePerNeuron = USD_PER_1_000_NEURONS / 1_000;
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
+      const refreshUsage = () => {
+        const current = readDailyUsage();
+        setDailyUsage(current);
+        setLastUsage(readLastUsage(current.utcDay));
+      };
+
       setIsOnline(navigator.onLine);
       const handleOnline = () => setIsOnline(true);
       const handleOffline = () => setIsOnline(false);
       window.addEventListener('online', handleOnline);
       window.addEventListener('offline', handleOffline);
+      window.addEventListener('focus', refreshUsage);
+      window.addEventListener('storage', refreshUsage);
+      document.addEventListener('visibilitychange', refreshUsage);
+      const resetTimer = window.setInterval(refreshUsage, 30_000);
+      refreshUsage();
 
       const savedPass = localStorage.getItem('aurikrex_falcon_passphrase');
       if (savedPass) {
@@ -42,17 +114,24 @@ export const AskModal: React.FC<AskModalProps> = ({
         setShowPassphraseInput(true);
       }
 
-      const savedNeurons = localStorage.getItem('aurikrex_neurons_remaining');
-      if (savedNeurons) {
-        setDailyNeuronsRemaining(parseInt(savedNeurons, 10));
-      }
-
       return () => {
         window.removeEventListener('online', handleOnline);
         window.removeEventListener('offline', handleOffline);
+        window.removeEventListener('focus', refreshUsage);
+        window.removeEventListener('storage', refreshUsage);
+        document.removeEventListener('visibilitychange', refreshUsage);
+        window.clearInterval(resetTimer);
       };
     }
   }, []);
+
+  useEffect(() => {
+    if (isOpen) {
+      const current = readDailyUsage();
+      setDailyUsage(current);
+      setLastUsage(readLastUsage(current.utcDay));
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -101,9 +180,28 @@ export const AskModal: React.FC<AskModalProps> = ({
       const payload = await response.json().catch(() => null);
       if (!response.ok) throw new Error(payload?.error || 'Workers AI request failed.');
 
-      const newNeurons = Math.max(0, dailyNeuronsRemaining - 460);
-      setDailyNeuronsRemaining(newNeurons);
-      localStorage.setItem('aurikrex_neurons_remaining', newNeurons.toString());
+      const usage = payload?.usage as AIUsageSummary | null | undefined;
+      if (
+        usage && typeof usage.promptTokens === 'number' && typeof usage.completionTokens === 'number'
+      ) {
+        setLastUsage(usage);
+        setUsageNotice(null);
+        if (typeof usage.neuronsConsumed === 'number' && Number.isFinite(usage.neuronsConsumed)) {
+          const utcDay = getUtcDayKey();
+          const updated = addUsageToDaily(readDailyUsage(), usage, utcDay);
+          try {
+            localStorage.setItem(DAILY_USAGE_STORAGE_KEY, JSON.stringify(updated));
+            localStorage.setItem(LAST_USAGE_STORAGE_KEY, JSON.stringify({ utcDay, usage }));
+          } catch {
+            setUsageNotice('Usage was measured, but this browser could not save the daily total.');
+          }
+          setDailyUsage(updated);
+        } else {
+          setUsageNotice('Token counts were returned, but this model has no configured neuron price.');
+        }
+      } else {
+        setUsageNotice('This response did not include usage metrics, so the neuron balance was not updated.');
+      }
 
       if (payload?.kind === 'answer' && typeof payload.answer === 'string') {
         setAssistantAnswer(payload.answer);
@@ -156,11 +254,36 @@ export const AskModal: React.FC<AskModalProps> = ({
           <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800 flex items-center justify-between">
             <div className="space-y-0.5">
               <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">
-                Workers AI DeepSeek Allowance
+                Workers AI · {formatModelName(activeModel)}
               </span>
               <div className="text-[11px] font-mono text-purple-300">
-                {dailyNeuronsRemaining.toLocaleString()} / 10,000 Neurons remaining today
+                {dailyNeuronsRemaining.toLocaleString(undefined, { maximumFractionDigits: 2 })} / {DAILY_FREE_NEURON_LIMIT.toLocaleString()} estimated neurons remaining today
               </div>
+              <div className="text-[10px] text-slate-500">
+                This device · resets at 00:00 UTC
+              </div>
+              {modelPricing && (
+                <>
+                  <div className="text-[10px] text-slate-500">
+                    Per 1M tokens: ${modelPricing.inputUsdPerMillion.toFixed(3)} input / ${modelPricing.outputUsdPerMillion.toFixed(3)} output
+                  </div>
+                  <div className="text-[10px] text-slate-500">
+                    Neuron rates: {modelPricing.inputNeuronsPerMillion.toLocaleString()} input / {modelPricing.outputNeuronsPerMillion.toLocaleString()} output · ≈ ${dollarValuePerNeuron.toFixed(6)} per neuron above free allocation
+                  </div>
+                </>
+              )}
+              <div className="text-[10px] text-slate-500">
+                Today tracked: {dailyUsage.neuronsUsed.toLocaleString(undefined, { maximumFractionDigits: 2 })} neurons · {dailyUsage.inputTokens.toLocaleString()} in / {dailyUsage.outputTokens.toLocaleString()} out tokens
+              </div>
+              {lastUsage && (
+                <div className="text-[10px] text-slate-400">
+                  Last call{lastUsage.exact ? '' : ' (estimated)'}: {lastUsage.promptTokens.toLocaleString()} in / {lastUsage.completionTokens.toLocaleString()} out tokens
+                  {typeof lastUsage.neuronsConsumed === 'number' && (
+                    <> · {lastUsage.neuronsConsumed.toLocaleString(undefined, { maximumFractionDigits: 2 })} neurons · ${lastUsage.costUsd?.toFixed(8) ?? 'n/a'}</>
+                  )}
+                </div>
+              )}
+              {usageNotice && <div className="text-[10px] text-amber-400">{usageNotice}</div>}
             </div>
             <button
               onClick={() => setShowPassphraseInput(!showPassphraseInput)}
@@ -179,7 +302,7 @@ export const AskModal: React.FC<AskModalProps> = ({
                 <span>Falcon's Device Passphrase</span>
               </div>
               <p className="text-[11px] text-slate-400">
-                Stored locally on this device only to protect your Cloudflare Worker budget.
+                Stored locally on this device. The Worker does not validate this passphrase, so it does not secure the AI endpoint.
               </p>
               <div className="flex gap-2">
                 <input
@@ -202,7 +325,7 @@ export const AskModal: React.FC<AskModalProps> = ({
           {/* Prompt textarea */}
           <div className="space-y-1.5">
             <label className="text-slate-300 font-semibold block">
-              Type or paste word problem:
+              Beyond Numbers? Ask away:
             </label>
             <textarea
               rows={3}
@@ -239,7 +362,7 @@ export const AskModal: React.FC<AskModalProps> = ({
           {assistantAnswer && (
             <div className="bg-slate-950 p-3.5 rounded-xl border border-blue-500/30 text-slate-200 leading-relaxed">
               <div className="flex items-center gap-2 text-blue-700 font-semibold text-xs border-b border-slate-800 pb-2 mb-2">
-                <span>Beyond numbers? Ask away</span>
+                <span>FalkeAI</span>
               </div>
               <p className="whitespace-pre-wrap">{assistantAnswer}</p>
             </div>
