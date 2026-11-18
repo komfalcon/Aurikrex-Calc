@@ -4,11 +4,54 @@ import { Dimension, DIMENSIONS } from './contract';
 
 const math = create(all);
 
-try {
-  math.createUnit('atm', '101325 Pa', { override: true });
-  math.createUnit('eV', '1.602176634e-19 J', { override: true });
-  math.createUnit('kWh', '3.6e6 J', { override: true });
-} catch {}
+/**
+ * Register the named SI units that Math.js does not ship with, plus the
+ * accepted and widely used physics/chemistry extensions. Semantic units such
+ * as Gy and Sv are deliberately registered separately even though both reduce
+ * dimensionally to m²/s².
+ */
+export function registerScienceUnits(target: any): void {
+  const definitions: Array<[string, string]> = [
+    // Remaining SI derived units with special names.
+    ['sr', '1'],
+    ['lm', '1 cd'],
+    ['lx', '1 cd/m^2'],
+    ['Bq', '1/s'],
+    ['Gy', '1 m^2/s^2'],
+    ['Sv', '1 m^2/s^2'],
+    ['kat', '1 mol/s'],
+
+    // Accepted or established non-SI units used in physics and chemistry.
+    ['atm', '101325 Pa'],
+    ['eV', '1.602176634e-19 J'],
+    ['kWh', '3.6e6 J'],
+    ['Da', '1.66053906660e-27 kg'],
+    ['ua', '149597870700 m'],
+    ['angstrom', '1e-10 m'],
+    ['barn', '1e-28 m^2'],
+    ['bar', '1e5 Pa'],
+    ['mmHg', '133.322387415 Pa'],
+
+    // Common CGS and legacy laboratory units.
+    ['dyn', '1e-5 N'],
+    ['erg', '1e-7 J'],
+    ['P', '0.1 Pa s'],
+    ['St', '1e-4 m^2/s'],
+    ['Gal', '0.01 m/s^2'],
+
+    // Atomic-unit anchors useful in spectroscopy and quantum chemistry.
+    ['bohr', '5.29177210903e-11 m'],
+    ['hartree', '4.3597447222071e-18 J'],
+  ];
+
+  for (const [name, definition] of definitions) {
+    try {
+      target.createUnit(name, definition, { override: true });
+    } catch {}
+  }
+}
+
+registerScienceUnits(math);
 
 export interface UnitCategory {
   name: string;
@@ -92,6 +135,10 @@ export const COMPATIBLE_CONVERSIONS: Record<string, string[]> = {
  */
 export function normalizeUnitTokens(input: string): string {
   let res = input;
+  // People commonly omit the multiplication dot in compound units. Keep this
+  // deliberately narrow so km (kilometre) and other valid unit tokens remain
+  // unambiguous: kgm/s² becomes kg*m/s².
+  res = res.replace(/\b[Kk]gm(?=\s*(?:\^?[²³⁴]|[/*)]|$))/g, 'kg*m');
   res = res.replace(/(?:³|\u00B3)(?!√)/g, '^3');
   res = res.replace(/²|\u00B2/g, '^2');
   res = res.replace(/⁴|\u2074/g, '^4');
@@ -101,6 +148,13 @@ export function normalizeUnitTokens(input: string): string {
   res = res.replace(/Ω/g, 'ohm');
   res = res.replace(/μ/g, 'u');
   res = res.replace(/°C/g, 'degC');
+  // Common scientific aliases that are not safe to register globally in
+  // Math.js because they collide with variables or prefix syntax.
+  res = res.replace(/\b(?:dalton|amu)\b/gi, 'Da');
+  res = res.replace(/Å/g, 'angstrom');
+  res = res.replace(/\b(?:AU|au|astronomical\s+unit)\b/g, 'ua');
+  res = res.replace(/\bdyne\b/gi, 'dyn');
+  res = res.replace(/\bcalorie\b/gi, 'cal');
   return res;
 }
 
@@ -111,8 +165,15 @@ export function formatUnit(u: any): string {
   if (!u) return '';
   if (typeof u === 'string') return u;
   try {
-    let simplified = u.simplify ? u.simplify() : u;
-    let str = simplified.formatUnits();
+    // Do not call Unit.simplify() here. Math.js may choose a convenient but
+    // surprising equivalent such as kWh for a result that should display as J.
+    const unitObj = u;
+    let str = unitObj.formatUnits();
+    const derived = DERIVED_UNIT_BY_DIMENSION[getUnitDimension(unitObj).join(',')];
+    // Composite SI dimensions are easier to read as their named derived unit:
+    // kg·m/s² → N, kg·m²/s² → J, kg·m²/s³ → W, and so on. Explicit units such
+    // as kN already have a named format and are intentionally left unchanged.
+    if (derived && !/^[A-Za-zΩ]+$/.test(str.trim())) return derived;
     str = str.replace(/\(m s\)\s*\/\s*s\^2/g, 'm/s');
     str = str.replace(/m\s*\/\s*s/g, 'm/s');
     str = str.replace(/ohm/g, 'Ω');
@@ -121,6 +182,23 @@ export function formatUnit(u: any): string {
     return String(u);
   }
 }
+
+/** Canonical SI derived units, keyed by [L, M, T, I, Θ, N, J]. */
+const DERIVED_UNIT_BY_DIMENSION: Record<string, string> = {
+  '0,0,-1,0,0,0,0': 'Hz',
+  '1,1,-2,0,0,0,0': 'N',
+  '-1,1,-2,0,0,0,0': 'Pa',
+  '2,1,-2,0,0,0,0': 'J',
+  '2,1,-3,0,0,0,0': 'W',
+  '0,0,1,1,0,0,0': 'C',
+  '2,1,-3,-1,0,0,0': 'V',
+  '2,1,-3,-2,0,0,0': 'Ω',
+  '-2,-1,3,2,0,0,0': 'S',
+  '2,1,-2,-1,0,0,0': 'Wb',
+  '0,1,-2,-1,0,0,0': 'T',
+  '2,1,-2,-2,0,0,0': 'H',
+  '-2,-1,4,2,0,0,0': 'F',
+};
 
 /**
  * Extract 7-integer SI Dimension array:

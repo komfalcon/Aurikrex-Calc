@@ -26,6 +26,9 @@ export function calculateStats(data: number[]): StatsSummary {
   if (!data || data.length === 0) {
     throw new Error('No data points provided');
   }
+  if (data.some((value) => !Number.isFinite(value))) {
+    throw new Error('All data points must be finite numbers');
+  }
 
   const n = data.length;
   const sum = data.reduce((a, b) => a + b, 0);
@@ -77,6 +80,9 @@ export function calculateStats(data: number[]): StatsSummary {
 export function calculateLinearRegression(points: { x: number; y: number }[]): LinearRegressionResult {
   const n = points.length;
   if (n < 2) throw new Error('At least 2 points are required for linear regression');
+  if (points.some((pt) => !pt || !Number.isFinite(pt.x) || !Number.isFinite(pt.y))) {
+    throw new Error('All regression points must contain finite x and y values');
+  }
 
   let sumX = 0;
   let sumY = 0;

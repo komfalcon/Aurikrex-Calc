@@ -7,6 +7,7 @@ import { InputLine } from '../components/InputLine';
 import { SuggestionStrip } from '../components/SuggestionStrip';
 import { UnitRow } from '../components/UnitRow';
 import { FunctionPanel } from '../components/FunctionPanel';
+import { GuidedTools } from '../components/GuidedTools';
 import { NumberKeypad } from '../components/NumberKeypad';
 import { ToolboxModal } from '../components/ToolboxModal';
 import { FormulaBankModal } from '../components/FormulaBankModal';
@@ -56,6 +57,7 @@ export default function AurikrexCalcApp() {
   const [askModalOpen, setAskModalOpen] = useState<boolean>(false);
   const [historyDrawerOpen, setHistoryDrawerOpen] = useState<boolean>(false);
   const [advancedOpen, setAdvancedOpen] = useState<boolean>(false);
+  const [advancedExpertMode, setAdvancedExpertMode] = useState<boolean>(false);
   const [currentSteps, setCurrentSteps] = useState<{ expr: string; res: string; steps?: string[] }>({
     expr: '',
     res: '',
@@ -427,7 +429,7 @@ export default function AurikrexCalcApp() {
         <button type="button" onClick={() => handleInsert('π')} className="quick-action">π</button>
         <button type="button" onClick={() => handleInsert('(')} className="quick-action">(</button>
         <button type="button" onClick={() => handleInsert(')')} className="quick-action">)</button>
-        <button type="button" onClick={() => setAdvancedOpen(true)} className="quick-action quick-action-primary">Advanced</button>
+      <button type="button" onClick={() => { setAdvancedExpertMode(false); setAdvancedOpen(true); }} className="quick-action quick-action-primary">Advanced</button>
       </div>
       {/* 7. Number Keypad (flex ratio 4, = key solid blue with angled corner) */}
       <NumberKeypad
@@ -440,31 +442,45 @@ export default function AurikrexCalcApp() {
         onTogglePlusMinus={handleTogglePlusMinus}
       />
 
-      {/* Advanced scientific functions remain complete, but no longer crowd the primary keypad. */}
+      {/* Guided tools are the default; the complete legacy scientific keypad remains available as Expert Mode. */}
       {advancedOpen && (
         <div className="advanced-sheet-backdrop" role="presentation" onClick={() => setAdvancedOpen(false)}>
           <section className="advanced-sheet" role="dialog" aria-modal="true" aria-label="Advanced calculator functions" onClick={(e) => e.stopPropagation()}>
             <div className="advanced-sheet-header">
-              <div><p className="advanced-eyebrow">AURIKREX CALC</p><h2>Advanced functions</h2></div>
+              <div><p className="advanced-eyebrow">AURIKREX CALC</p><h2>{advancedExpertMode ? 'Expert keypad' : 'Guided tools'}</h2></div>
               <button type="button" onClick={() => setAdvancedOpen(false)} className="advanced-close" aria-label="Close advanced functions">×</button>
             </div>
-            <p className="advanced-description">Scientific, algebraic, statistical, and science tools are organized across swipeable pages.</p>
-            <FunctionPanel
-              shiftActive={shiftActive}
-              shiftLocked={shiftLocked}
-              alphaActive={alphaActive}
-              invActive={invActive}
-              hypActive={hypActive}
-              onToggleShift={handleToggleShift}
-              onToggleAlpha={handleToggleAlpha}
-              onToggleInv={handleToggleInv}
-              onToggleHyp={handleToggleHyp}
-              onInsert={handleInsert}
-              onOpenConstants={() => { setAdvancedOpen(false); setConstantsOpen(true); }}
-              onOpenFormulaBank={() => { setAdvancedOpen(false); setFormulaBankOpen(true); }}
-              onOpenChem={() => { setAdvancedOpen(false); setChemOpen(true); }}
-              onOpenStats={() => { setAdvancedOpen(false); setToolboxOpen(true); }}
-            />
+            <p className="advanced-description">Choose what you want to do, fill in named fields, and see the generated calculator syntax before using it.</p>
+            {advancedExpertMode ? (
+              <>
+                <button type="button" className="guided-back-link" onClick={() => setAdvancedExpertMode(false)}>‹ Back to guided tools</button>
+                <FunctionPanel
+                  shiftActive={shiftActive}
+                  shiftLocked={shiftLocked}
+                  alphaActive={alphaActive}
+                  invActive={invActive}
+                  hypActive={hypActive}
+                  onToggleShift={handleToggleShift}
+                  onToggleAlpha={handleToggleAlpha}
+                  onToggleInv={handleToggleInv}
+                  onToggleHyp={handleToggleHyp}
+                  onInsert={handleInsert}
+                  onOpenConstants={() => { setAdvancedOpen(false); setConstantsOpen(true); }}
+                  onOpenFormulaBank={() => { setAdvancedOpen(false); setFormulaBankOpen(true); }}
+                  onOpenChem={() => { setAdvancedOpen(false); setChemOpen(true); }}
+                  onOpenStats={() => { setAdvancedOpen(false); setToolboxOpen(true); }}
+                />
+              </>
+            ) : (
+              <GuidedTools
+                onInsert={handleInsert}
+                onOpenConstants={() => { setAdvancedOpen(false); setConstantsOpen(true); }}
+                onOpenFormulaBank={() => { setAdvancedOpen(false); setFormulaBankOpen(true); }}
+                onOpenChem={() => { setAdvancedOpen(false); setChemOpen(true); }}
+                onOpenStats={() => { setAdvancedOpen(false); setToolboxOpen(true); }}
+                onExpertMode={() => setAdvancedExpertMode(true)}
+              />
+            )}
           </section>
         </div>
       )}

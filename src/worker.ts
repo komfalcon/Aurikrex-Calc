@@ -24,6 +24,14 @@ const corsHeaders = {
   'access-control-allow-headers': 'content-type',
 };
 
+const CURRENT_AI_MODEL = '@cf/meta/llama-3.1-8b-instruct-fp8';
+const DEPRECATED_AI_MODELS = new Set([
+  '@cf/meta/llama-3.1-8b-instruct',
+  '@cf/meta/llama-3.1-8b-instruct-awq',
+  '@cf/meta/llama-3-8b-instruct',
+  '@cf/meta/llama-3-8b-instruct-awq',
+]);
+
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
     status,
@@ -144,7 +152,10 @@ For a formula response, choose only an exact formula id from the catalog, copy o
 Formula catalog:
 ${formulaCatalog}`;
 
-  const model = env.AI_MODEL || DEFAULT_AI_MODEL;
+  const configuredModel = env.AI_MODEL?.trim();
+  const model = configuredModel && !DEPRECATED_AI_MODELS.has(configuredModel)
+    ? configuredModel
+    : CURRENT_AI_MODEL;
   const endpoint = `https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(env.CLOUDFLARE_ACCOUNT_ID)}/ai/v1/chat/completions`;
   let aiResponse: Response;
   try {
@@ -171,8 +182,13 @@ ${formulaCatalog}`;
 
   const payload = await aiResponse.json().catch(() => null) as any;
   if (!aiResponse.ok || payload?.success === false) {
+    const details = Array.isArray(payload?.errors)
+      ? payload.errors.map((item: any) => item?.message || item?.code).filter(Boolean).join(' ')
+      : '';
     return json({
-      error: 'Cloudflare Workers AI rejected the request.',
+      error: details ? `Cloudflare Workers AI rejected the request: ${details}` : 'Cloudflare Workers AI rejected the request.',
+      code: payload?.errors?.[0]?.code,
+      model,
       details: payload?.errors ?? (payload?.error ? [payload.error] : []),
     }, 502);
   }

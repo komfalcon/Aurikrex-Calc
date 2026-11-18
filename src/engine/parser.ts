@@ -20,6 +20,7 @@ export function preprocessExpression(input: string, angleMode: 'deg' | 'rad' = '
       openCount++;
     } else if (expr[i] === ')') {
       if (openCount > 0) openCount--;
+      else throw new Error('Unexpected closing parenthesis');
     }
   }
   if (openCount > 0) {
@@ -44,15 +45,18 @@ export function preprocessExpression(input: string, angleMode: 'deg' | 'rad' = '
   expr = expr.replace(/–/g, '-');
   expr = expr.replace(/•/g, '*');
 
-  // Replace powers of 10: e.g. "×10^" or "x10^" or "×10ˣ" or "E"
-  expr = expr.replace(/×10\^/g, '*10^');
-  expr = expr.replace(/x10\^/gi, '*10^');
-  expr = expr.replace(/×10ˣ/g, '*10^');
-  expr = expr.replace(/×10([⁰¹²³⁴⁵⁶⁷⁸⁹⁻]+)/g, (_, exp) => {
-    const unmap: Record<string, string> = { '⁻': '-', '⁰': '0', '¹': '1', '²': '2', '³': '3', '⁴': '4', '⁵': '5', '⁶': '6', '⁷': '7', '⁸': '8', '⁹': '9' };
-    const num = exp.split('').map((c: string) => unmap[c] || c).join('');
-    return `*10^(${num})`;
-  });
+  // Replace powers of 10, including the UI form "2.5 × 10¹".
+  // Allow whitespace around the multiplication marker and decode every
+  // superscript digit, not only the unit-specific subset handled below.
+  const superscriptMap: Record<string, string> = {
+    '⁻': '-', '⁰': '0', '¹': '1', '²': '2', '³': '3', '⁴': '4',
+    '⁵': '5', '⁶': '6', '⁷': '7', '⁸': '8', '⁹': '9',
+  };
+  const decodeSuperscript = (value: string) => value.split('').map((c) => superscriptMap[c] || c).join('');
+  expr = expr.replace(/(?:\*|x)\s*10\s*\^\s*([+-]?\d+)/gi, '*10^($1)');
+  expr = expr.replace(/(?:\*|x)\s*10\s*ˣ/gi, '*10^');
+  expr = expr.replace(/(?:\*|x)\s*10\s*([⁰¹²³⁴⁵⁶⁷⁸⁹⁻]+)/g, (_, exp) => `*10^(${decodeSuperscript(exp)})`);
+  expr = expr.replace(/\b10([⁰¹²³⁴⁵⁶⁷⁸⁹⁻]+)/g, (_, exp) => `10^(${decodeSuperscript(exp)})`);
 
   // Normalise unit superscripts
   expr = normalizeUnitTokens(expr);
@@ -69,7 +73,7 @@ export function preprocessExpression(input: string, angleMode: 'deg' | 'rad' = '
 
   // Implicit multiplication:
   // Number directly before variable or function: 2pi -> 2*pi, 2x -> 2*x, 3sin(x) -> 3*sin(x), 2Ans -> 2*Ans
-  expr = expr.replace(/(?<![a-zA-Z0-9_])(\d+(\.\d+)?)(\s*)([a-zA-Zπ]|pi|Ans|\()/g, (m, num, _, space, after) => {
+  expr = expr.replace(/(?<![a-zA-Z0-9_])(\d+(?:\.\d+)?)(\s*)(Ans|pi|[a-zA-Zπ]|\()/g, (_m, num, _space, after) => {
     return `${num}*${after}`;
   });
 

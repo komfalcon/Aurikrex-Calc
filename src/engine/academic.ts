@@ -31,7 +31,13 @@ export function calculateCGPA(courses: CourseGrade[]): CGPAResult {
   let totalQualityPoints = 0;
 
   for (const c of courses) {
-    const pts = GRADE_POINTS_5_0[c.grade] ?? 0;
+    if (!c || !Number.isFinite(c.creditUnits) || c.creditUnits <= 0) {
+      throw new Error('Credit units must be a positive finite number');
+    }
+    if (!(c.grade in GRADE_POINTS_5_0)) {
+      throw new Error(`Invalid grade: ${c.grade}`);
+    }
+    const pts = GRADE_POINTS_5_0[c.grade];
     totalCreditUnits += c.creditUnits;
     totalQualityPoints += c.creditUnits * pts;
   }
@@ -74,11 +80,14 @@ export interface JAMBAggregateResult {
 
 export function calculateJAMBAggregate(params: JAMBAggregateParams): JAMBAggregateResult {
   const { utmeScore, olevelGrades } = params;
-  if (utmeScore < 0 || utmeScore > 400) {
+  if (!Number.isFinite(utmeScore) || utmeScore < 0 || utmeScore > 400) {
     throw new Error('UTME score must be between 0 and 400');
   }
   if (!olevelGrades || olevelGrades.length < 5) {
     throw new Error('5 core O-level subjects are required');
+  }
+  if (olevelGrades.slice(0, 5).some((grade) => !(grade in OLEVEL_POINTS))) {
+    throw new Error('O-level grades must be A1, B2, B3, C4, C5, or C6');
   }
 
   // UTME is 50%: (score / 400) * 50 = score / 8

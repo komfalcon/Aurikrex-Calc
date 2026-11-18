@@ -11,19 +11,14 @@ import {
 } from './contract';
 import { preprocessExpression } from './parser';
 import { createResponseForms, snapToClean } from './formatting';
-import { formatUnit, getUnitDimension, normalizeUnitTokens, convertUnit } from './units';
+import { formatUnit, getUnitDimension, normalizeUnitTokens, convertUnit, registerScienceUnits } from './units';
 import { numericalDerivative, numericalDefiniteIntegral, solveEquation } from './calculus';
 import { calculateMolarMass } from './chemistry';
 import { calculateStats, calculateLinearRegression } from './statistics';
 import { FORMULA_BANK, solveFormula } from './formulas';
 
 const math = create(all);
-
-try {
-  math.createUnit('atm', '101325 Pa', { override: true });
-  math.createUnit('eV', '1.602176634e-19 J', { override: true });
-  math.createUnit('kWh', '3.6e6 J', { override: true });
-} catch {}
+registerScienceUnits(math);
 
 const CONTRACT_VERSION = 'v2.0.0-draft';
 
@@ -40,7 +35,11 @@ export class AurikrexEngine {
    */
   evaluate(requestJson: string): string {
     try {
-      const request: EvaluateRequest = JSON.parse(requestJson);
+      const parsed = JSON.parse(requestJson);
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed) || typeof parsed.input !== 'string') {
+        throw new Error('Request must be an object with a string input');
+      }
+      const request: EvaluateRequest = parsed;
       const response = this.evaluateParsed(request);
       return JSON.stringify(response);
     } catch (err: any) {
@@ -239,8 +238,11 @@ export class AurikrexEngine {
       const rawResult = math.evaluate(processedExpr, scope);
 
       // Handle Infinite / NaN
-      if (rawResult === Infinity || rawResult === -Infinity) {
-        return this.makeError('DIV_ZERO', "Can't divide by zero");
+      if (typeof rawResult === 'number' && !Number.isFinite(rawResult)) {
+        if (rawResult === Infinity || rawResult === -Infinity) {
+          return this.makeError('OVERFLOW', 'Result is outside the numeric range');
+        }
+        return this.makeError('DOMAIN', 'Result is undefined or outside domain');
       }
       if (typeof rawResult === 'number' && isNaN(rawResult)) {
         return this.makeError('DOMAIN', 'Result is undefined or outside domain');
@@ -248,12 +250,10 @@ export class AurikrexEngine {
 
       // Handle Unit results
       if (rawResult && typeof rawResult === 'object' && rawResult.isUnit) {
-        let activeUnit = rawResult;
-        try {
-          if (activeUnit.simplify) {
-            activeUnit = activeUnit.simplify();
-          }
-        } catch {}
+        // Keep the raw unit composition for display. Math.js simplification
+        // can select a surprising equivalent (for example kWh for joules),
+        // while the formatter can recognize the canonical derived SI name.
+        const activeUnit = rawResult;
 
         const numVal = snapToClean(activeUnit.value);
         const unitStr = formatUnit(activeUnit);
@@ -330,6 +330,12 @@ export class AurikrexEngine {
       if (msg.includes('Unexpected type of argument')) {
         return this.makeError('UNEXPECTED_TOKEN', msg);
       }
+      if (msg.includes('Unknown function')) {
+        return this.makeError('UNKNOWN_FUNCTION', msg);
+      }
+      if (msg.includes('Unknown unit')) {
+        return this.makeError('UNKNOWN_UNIT', msg);
+      }
 
       return this.makeError('SYNTAX', msg || 'Evaluation syntax error');
     }
@@ -343,42 +349,45 @@ export class AurikrexEngine {
     try {
       const request: RecalcRequest = JSON.parse(rowsJson);
       const rows = request.rows || [];
+      if (!Array.isArray(rows)) throw new Error('rows must be an array');
       const context = request.context || { variables: {} };
       const results: Record<string, EvaluateResponse> = {};
 
-      // Cycle detection
-      const visited = new Set<string>();
-      for (const r of rows) {
-        if (r.dependsOn && r.dependsOn.includes(r.id)) {
-          return JSON.stringify({
-            ok: false,
-            results: {},
-            error: {
-              code: 'CYCLE',
-              message: `Row ${r.id} refers to itself`,
-            },
-          });
+      const rowById = new Map(rows.map((r) => [r.id, r]));
+      const visiting = new Set<string>();
+      const evaluated = new Set<string>();
+      const evaluateRow = (r: RecalcRequest['rows'][number]): void => {
+        if (evaluated.has(r.id)) return;
+        if (visiting.has(r.id)) throw Object.assign(new Error(`Circular dependency at row ${r.id}`), { code: 'CYCLE' });
+        visiting.add(r.id);
+        for (const dependencyId of r.dependsOn || []) {
+          const dependency = rowById.get(dependencyId);
+          if (!dependency) throw Object.assign(new Error(`Row ${r.id} depends on missing row ${dependencyId}`), { code: 'UNKNOWN_VARIABLE' });
+          evaluateRow(dependency);
         }
-      }
 
-      // Sequential evaluation updating Ans
-      let lastVal: EvaluateResponse | null = null;
-      for (const r of rows) {
+        const prior = [...rows].reverse().find((candidate) => evaluated.has(candidate.id));
+        const priorResponse = prior ? results[prior.id] : undefined;
         const evalCtx = {
           ...context,
-          ans: lastVal && lastVal.value !== null ? { value: lastVal.value, unit: lastVal.unit } : undefined,
+          ans: priorResponse && typeof priorResponse.value === 'number'
+            ? { value: priorResponse.value, unit: priorResponse.unit }
+            : undefined,
         };
         const res = this.evaluateParsed({ input: r.expression, context: evalCtx });
         results[r.id] = res;
-        lastVal = res;
-      }
+        visiting.delete(r.id);
+        evaluated.add(r.id);
+      };
+
+      for (const r of rows) evaluateRow(r);
 
       return JSON.stringify({ ok: true, results, error: null });
     } catch (e: any) {
       return JSON.stringify({
         ok: false,
         results: {},
-        error: { code: 'INTERNAL', message: e.message || 'Error in recalc' },
+        error: { code: e.code || 'INTERNAL', message: e.message || 'Error in recalc' },
       });
     }
   }

@@ -1280,6 +1280,15 @@ export function solveFormula(
   formula: FormulaDefinition,
   inputs: Record<string, number>
 ): { result: number; targetVar: string; steps: StepItem[] } {
+  if (!formula || !formula.id || !Array.isArray(formula.variables)) {
+    throw new Error('Invalid formula definition');
+  }
+  for (const [key, value] of Object.entries(inputs || {})) {
+    if (value !== undefined && !Number.isFinite(value)) {
+      throw new Error(`Variable ${key} must be a finite number`);
+    }
+  }
+
   // Find unknown variable (the one not provided)
   const unknown = formula.variables.find((v) => inputs[v.symbol] === undefined || isNaN(inputs[v.symbol]));
 
@@ -1610,6 +1619,10 @@ export function solveFormula(
       steps.push({ type: 'substitution', text: `Substituted variables into ${formula.name}` });
     }
     steps.push({ type: 'result', text: `${sym} = ${result.toFixed(4)}` });
+  }
+
+  if (!Number.isFinite(result)) {
+    throw new Error('Formula result is undefined or outside the numeric range');
   }
 
   return {

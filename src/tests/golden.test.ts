@@ -117,6 +117,76 @@ describe('Aurikrex PRD v2 Golden Test Suite (Section 8 Seed Cases & 100+ Tests)'
       expect(callRes.ok).toBe(true);
       expect(callRes.result.value).toBe(1);
     });
+
+    it('Rejects a malformed evaluate request instead of treating it as empty input', () => {
+      const res = JSON.parse(engine.evaluate('{}'));
+      expect(res.ok).toBe(false);
+      expect(res.error.code).toBe('SYNTAX');
+    });
+
+    it('Recalc detects indirect dependency cycles', () => {
+      const res = JSON.parse(engine.recalc(JSON.stringify({
+        rows: [
+          { id: 'a', expression: '1', dependsOn: ['b'] },
+          { id: 'b', expression: '2', dependsOn: ['a'] },
+        ],
+      })));
+      expect(res.ok).toBe(false);
+      expect(res.error.code).toBe('CYCLE');
+    });
+  });
+
+  describe('Engine edge-case regressions', () => {
+    it('Parses the UI scientific notation form with spaces and superscripts', () => {
+      const res = evalJson('2.5 × 10¹');
+      expect(res.ok).toBe(true);
+      expect(res.value).toBe(25);
+    });
+
+    it('Names equivalent SI derived units instead of exposing raw dimensions', () => {
+      expect(evalJson('1 kg*m/s^2').unit).toBe('N');
+      expect(evalJson('1 kgm/s²').unit).toBe('N');
+      expect(evalJson('1 kg*m^2/s^2').unit).toBe('J');
+      expect(evalJson('1 kg*m^2/s^3').unit).toBe('W');
+      expect(evalJson('1 kg/(m*s^2)').unit).toBe('Pa');
+      expect(evalJson('1 V/A').unit).toBe('Ω');
+    });
+
+    it('Preserves explicitly selected prefixed derived units', () => {
+      const res = evalJson('1 kN');
+      expect(res.ok).toBe(true);
+      expect(res.value).toBe(1000);
+      expect(res.unit).toBe('kN');
+    });
+
+    it('Recognizes specialist SI and science-unit symbols without collapsing semantics', () => {
+      expect(evalJson('1 Bq').unit).toBe('Bq');
+      expect(evalJson('1 Gy').unit).toBe('Gy');
+      expect(evalJson('1 Sv').unit).toBe('Sv');
+      expect(evalJson('1 kat').unit).toBe('kat');
+      expect(evalJson('1 Da').unit).toBe('Da');
+      expect(evalJson('1 Å').unit).toBe('angstrom');
+      expect(evalJson('1 barn').unit).toBe('barn');
+      expect(evalJson('1 dyne').unit).toBe('dyn');
+      expect(evalJson('1 erg').unit).toBe('erg');
+      expect(evalJson('1 au').unit).toBe('ua');
+    });
+
+    it('Rejects an unmatched closing parenthesis', () => {
+      const res = evalJson('1 + 2)');
+      expect(res.ok).toBe(false);
+      expect(res.error?.code).toBe('SYNTAX');
+    });
+
+    it('Rejects invalid statistics values', () => {
+      expect(() => calculateStats([1, Number.NaN])).toThrow(/finite/);
+      expect(() => calculateLinearRegression([{ x: 1, y: Number.POSITIVE_INFINITY }, { x: 2, y: 3 }])).toThrow(/finite/);
+    });
+
+    it('Rejects invalid academic inputs', () => {
+      expect(() => calculateCGPA([{ courseCode: 'X', creditUnits: 0, grade: 'A' }])).toThrow(/Credit units/);
+      expect(() => calculateJAMBAggregate({ utmeScore: 100, olevelGrades: ['A1', 'BAD' as any, 'B2', 'C4', 'C5'] })).toThrow(/O-level/);
+    });
   });
 
   // --- Comprehensive Arithmetic & Order of Operations (20 tests) ---
@@ -460,4 +530,3 @@ describe('Aurikrex PRD v2 Golden Test Suite (Section 8 Seed Cases & 100+ Tests)'
     });
   });
 });
-
