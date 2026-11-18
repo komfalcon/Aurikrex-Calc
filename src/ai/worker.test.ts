@@ -45,9 +45,9 @@ describe('Workers AI ask telemetry', () => {
       promptTokens: 100,
       completionTokens: 20,
       totalTokens: 120,
-      neuronsConsumed: 4.06374,
       exact: true,
     });
+    expect(payload.usage.neuronsConsumed).toBeCloseTo(1.90363636362, 8);
   });
 
   it('marks text-length token fallback as estimated when provider usage is absent', async () => {

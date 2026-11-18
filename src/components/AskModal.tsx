@@ -54,6 +54,7 @@ function readLastUsage(utcDay: string): AIUsageSummary | null {
 }
 
 function formatModelName(model: string): string {
+  if (model === '@cf/meta/llama-3.1-8b-instruct-fp8') return 'Llama 3.1 8B FP8';
   if (model === DEFAULT_AI_MODEL) return 'Llama 3.1 8B';
   if (model === '@cf/deepseek-ai/deepseek-r1-distill-qwen-32b') return 'DeepSeek R1 Distill Qwen 32B';
   return model;

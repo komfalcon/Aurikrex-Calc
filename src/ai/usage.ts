@@ -1,4 +1,4 @@
-export const DEFAULT_AI_MODEL = '@cf/meta/llama-3.1-8b-instruct';
+export const DEFAULT_AI_MODEL = '@cf/meta/llama-3.1-8b-instruct-fp8';
 export const DAILY_FREE_NEURON_LIMIT = 10_000;
 export const USD_PER_1_000_NEURONS = 0.011;
 
@@ -12,6 +12,12 @@ export interface ModelNeuronPricing {
 // Rates published by Cloudflare Workers AI. Keep these tied to model IDs;
 // input and output token prices are deliberately not treated as interchangeable.
 export const MODEL_NEURON_PRICING: Record<string, ModelNeuronPricing> = {
+  '@cf/meta/llama-3.1-8b-instruct-fp8': {
+    inputNeuronsPerMillion: 13_818.181818,
+    outputNeuronsPerMillion: 26_090.909091,
+    inputUsdPerMillion: 0.152,
+    outputUsdPerMillion: 0.287,
+  },
   '@cf/meta/llama-3.1-8b-instruct': {
     inputNeuronsPerMillion: 25_608,
     outputNeuronsPerMillion: 75_147,
